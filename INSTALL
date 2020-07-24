@@ -44,10 +44,12 @@ of `autoconf'.
 
 The simplest way to compile this package is:
 
-  0. Make sure the GL libraries (libGL, libGLU and libglut) are installed 
+  0. Make sure the libraries (libGL, libGLU, libglut and libjpeg) are installed 
      on your unix system. if not, you may need to type :
     
-       `sudo apt install libglu1-mesa-dev freeglut3-dev'
+       `sudo apt install libglu1-mesa-dev'  # libGL, libGLU
+       `sudo apt install freeglut3-dev'     # libglut
+       `sudo apt install libjpeg-dev'       # libjpeg
 
      to install these dependencies on Ubuntu 18.04 or something.
 
