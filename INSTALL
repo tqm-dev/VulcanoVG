@@ -44,9 +44,22 @@ of `autoconf'.
 
 The simplest way to compile this package is:
 
-  1. `cd' to the directory containing the package's source code and type
-     `./configure' to configure the package for your system.
+  0. Make sure the GL libraries (libGL, libGLU and libglut) are installed 
+     on your unix system. if not, you may need to type :
+    
+       `sudo apt install libglu1-mesa-dev freeglut3-dev'
 
+     to install these dependencies on Ubuntu 18.04 or something.
+
+  1. `cd' to the directory containing the package's source code and type
+
+       `sh autogen.sh' 
+
+     to autoreconf call. then, type
+
+       `./configure LIBS="-lGL -lGLU -lglut' 
+
+     to configure the package for your system.
      Running `configure' might take a while.  While running, it prints
      some messages telling which features it is checking for.
 
