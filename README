@@ -1,9 +1,9 @@
-ShivaVG
+ShivulkanVG
 =============================
 
 See AUTHORS for the list of contributors
 
-ShivaVG is an open-source LGPL ANSI C implementation of the Khronos
+ShivulkanVG is an open-source LGPL ANSI C implementation of the Khronos
 Group OpenVG specification.
 
 I.    BUILD
@@ -99,7 +99,7 @@ III. IMPLEMENTATION STATUS
 
 Khronos states in the OpenVG specification, that the contexts for all
 their client APIs are expected to be created via the EGL API. Since
-EGL to use with ShivaVG has not been implemented yet, there is a set
+EGL to use with ShivulkanVG has not been implemented yet, there is a set
 of extension functions provided for the task of creating, maintaining
 and destroying the OpenVG context. (See next section EXTENSIONS for
 details.)

@@ -111,7 +111,7 @@ void VGContext_ctor(VGContext *c)
   
   /* GetString info */
   strncpy(c->vendor, "Ivan Leben", sizeof(c->vendor));
-  strncpy(c->renderer, "ShivaVG 0.1.0", sizeof(c->renderer));
+  strncpy(c->renderer, "ShivulkanVG 0.1.0", sizeof(c->renderer));
   strncpy(c->version, "1.0", sizeof(c->version));
   strncpy(c->extensions, "", sizeof(c->extensions));
   
