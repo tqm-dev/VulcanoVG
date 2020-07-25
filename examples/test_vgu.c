@@ -77,7 +77,7 @@ void createPrimitives()
 
 int main(int argc, char **argv)
 {
-  testInit(argc, argv, 500,500, "ShivulkanVG: VGU Primitives Test");
+  testInit(argc, argv, 500,500, "VulkanVG: VGU Primitives Test");
   testCallback(TEST_CALLBACK_DISPLAY, (CallbackFunc)display);
   
   createPrimitives();

@@ -476,7 +476,7 @@ void createButtons()
 
 int main(int argc, char **argv)
 {
-  testInit(argc, argv, 1000,800, "ShivulkanVG: Image Test");
+  testInit(argc, argv, 1000,800, "VulkanVG: Image Test");
   testCallback(TEST_CALLBACK_DISPLAY, (CallbackFunc)display);
   testCallback(TEST_CALLBACK_SPECIALKEY, (CallbackFunc)specialKey);
   testCallback(TEST_CALLBACK_BUTTON, (CallbackFunc)click);
