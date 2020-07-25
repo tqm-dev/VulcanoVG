@@ -170,7 +170,7 @@ void cleanup()
 
 int main(int argc, char **argv)
 {
-  testInit(argc, argv, 600,600, "ShivulkanVG: Tiger SVG Test");
+  testInit(argc, argv, 600,600, "VulkanVG: Tiger SVG Test");
   testCallback(TEST_CALLBACK_CLEANUP, (CallbackFunc)cleanup);
   testCallback(TEST_CALLBACK_DISPLAY, (CallbackFunc)display);
   testCallback(TEST_CALLBACK_KEY, (CallbackFunc)key);

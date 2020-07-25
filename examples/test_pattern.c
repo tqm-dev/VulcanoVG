@@ -329,7 +329,7 @@ void reshape(int x, int y)
 
 int main(int argc, char **argv)
 {
-  testInit(argc, argv, 400,400, "ShivulkanVG: Linear Gradient Test");
+  testInit(argc, argv, 400,400, "VulkanVG: Linear Gradient Test");
   testCallback(TEST_CALLBACK_DISPLAY, (CallbackFunc)display);
   testCallback(TEST_CALLBACK_BUTTON, (CallbackFunc)click);
   testCallback(TEST_CALLBACK_DRAG, (CallbackFunc)drag);
@@ -343,7 +343,7 @@ int main(int argc, char **argv)
   vgSetParameterfv(blackFill, VG_PAINT_COLOR, 4, black);
   
   backImage = createImageFromJpeg(IMAGE_DIR"test_img_violin.jpg");
-  patternImage = createImageFromJpeg(IMAGE_DIR"test_img_shivulkanvg.jpg");
+  patternImage = createImageFromJpeg(IMAGE_DIR"test_img_vulkanvg.jpg");
   patternFill = vgCreatePaint();
   
   createSquare(p);
