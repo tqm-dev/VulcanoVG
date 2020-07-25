@@ -106,7 +106,6 @@ case "${host}" in
 	GL_LIB="-lGL"
 	GLU_LIB="-lGLU"
 	GLUT_LIB="-lglut"
-	LIBS="-lGL -lGLU -lglut -ljpeg"
 	CONFIG_CFLAGS=""
 	CONFIG_LDFLAGS=""
 	CONFIG_LDADD="-lglut -lGL -lGLU" ;;
