@@ -80,3 +80,7 @@ src/libOpenVG_la-shVectors.lo
 src/libOpenVG_la-shVectors.o
 src/libOpenVG_la-shVgu.lo
 src/libOpenVG_la-shVgu.o
+src/libEGL.la
+src/libEGL_la-vuContext.lo
+src/libEGL_la-vuContext.o
+
