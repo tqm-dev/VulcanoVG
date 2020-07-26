@@ -4,7 +4,8 @@
 #include <string.h>
 #include <stdio.h>
 
-#define VU_EGL_DEFAULT_DISPLAY EGL_CAST(EGLDisplay,1)
+#define VU_EGL_DEFAULT_DISPLAY		EGL_CAST(EGLDisplay,1)
+#define VU_EGL_DEFAULT_CONFIG_ID	0xff
 static VkInstance s_vkInstance = VK_NULL_HANDLE;
 
 EGLAPI EGLBoolean EGLAPIENTRY eglInitialize (EGLDisplay dpy, EGLint *major, EGLint *minor)
@@ -117,6 +118,26 @@ EGLAPI EGLBoolean EGLAPIENTRY eglChooseConfig (EGLDisplay dpy, const EGLint *att
 {
 	if(dpy != VU_EGL_DEFAULT_DISPLAY)
 		return EGL_FALSE;
+
+	if(attrib_list == NULL)
+		return EGL_FALSE;
+
+	/* EGL_CONFIG_ID must be set to VU_EGL_DEFAULT_CONFIG_ID */
+	{
+		EGLint config_id = 0;
+		uint8_t i;
+
+		for(i = 0; attrib_list[i] != EGL_NONE; i += 2)
+			if(attrib_list[i] == EGL_CONFIG_ID)
+				config_id = attrib_list[i+1];
+
+		if(config_id == VU_EGL_DEFAULT_CONFIG_ID){
+			if(configs)    configs[0] = EGL_CAST(EGLConfig,VU_EGL_DEFAULT_CONFIG_ID);
+			if(num_config) *num_config = 1;
+		} else {
+			if(num_config) *num_config = 0;
+		}
+	}
 
 	return EGL_TRUE;
 }
