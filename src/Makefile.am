@@ -31,7 +31,9 @@ VG_include_HEADERS =\
 	$(top_builddir)/include/vg/vgu.h
 
 lib_LTLIBRARIES += libEGL.la
-libEGL_la_CFLAGS = -ansi -pedantic -I$(top_builddir)/include/egl
+libEGL_la_CFLAGS = \
+	-ansi -pedantic -I$(top_builddir)/include/egl \
+	-ansi -pedantic -I$(top_builddir)/include/vg
 libEGL_la_SOURCES =\
 	vuContext.c
 EGL_includedir = $(includedir)/egl

@@ -5,6 +5,7 @@ int main(int argc, char **argv)
 {
 	EGLDisplay dpy;
 	EGLConfig config;
+	EGLContext ctx;
 	EGLBoolean ret;
 	EGLint major, minor;
 
@@ -27,6 +28,15 @@ int main(int argc, char **argv)
 		assert(EGL_CAST(EGLint,config) == 0xff);
 		assert(num_config == 1);
 	}
+
+	ctx = eglCreateContext(dpy, config, EGL_NO_CONTEXT, NULL);
+	assert(ctx != EGL_NO_CONTEXT);
+
+	ret = eglDestroyContext(dpy, ctx);
+	assert(ret == EGL_TRUE);
+
+	ret = eglTerminate(dpy);
+	assert(ret == EGL_TRUE);
 
 	printf("test_egl is done !!! \r\n");
 

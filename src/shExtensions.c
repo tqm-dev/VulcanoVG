@@ -34,11 +34,15 @@ void fallbackActiveTexture(GLenum texture) {
 }
 
 void fallbackMultiTexCoord1f(GLenum target, GLfloat x) {
+#if !VU_RENDERING_ENGINE_VULKAN
   glTexCoord1f(x);
+#endif
 }
 
 void fallbackMultiTexCoord2f(GLenum target, GLfloat x, GLfloat y) {
+#if !VU_RENDERING_ENGINE_VULKAN
   glTexCoord2f(x, y);
+#endif
 }
 
 static int checkExtension(const char *extensions, const char *name)
@@ -82,6 +86,15 @@ PFVOID shGetProcAddress(const char *name)
 
 void shLoadExtensions(VGContext *c)
 {
+#if VU_RENDERING_ENGINE_VULKAN
+    c->isGLAvailable_ClampToEdge = 0;
+    c->isGLAvailable_MirroredRepeat = 0;
+    c->isGLAvailable_Multitexture = 0;
+    c->pglActiveTexture = (SH_PGLACTIVETEXTURE)fallbackActiveTexture;
+    c->pglMultiTexCoord1f = (SH_PGLMULTITEXCOORD1F)fallbackMultiTexCoord1f;
+    c->pglMultiTexCoord2f = (SH_PGLMULTITEXCOORD2F)fallbackMultiTexCoord2f;
+    c->isGLAvailable_TextureNonPowerOfTwo = 0;
+#else
   const char *ext = (const char*)glGetString(GL_EXTENSIONS);
   
   /* GL_TEXTURE_CLAMP_TO_EDGE */
@@ -129,4 +142,5 @@ void shLoadExtensions(VGContext *c)
     c->isGLAvailable_TextureNonPowerOfTwo = 1;
   else /* Unavailable */
     c->isGLAvailable_TextureNonPowerOfTwo = 0;
+#endif
 }
