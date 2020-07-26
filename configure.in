@@ -60,6 +60,11 @@ AC_ARG_WITH(
 	[  --with-example-blend          Build Blending example (default=yes)],
 	[build_test_blend=$withval], [build_test_blend="$build_test_all"])
 
+AC_ARG_WITH(
+	[example-egl],
+	[  --with-example-vgu            Build EGL example (default=yes)],
+	[build_test_egl=$withval], [build_test_egl="$build_test_all"])
+
 # ==============================================
 # Integer types
 
@@ -332,6 +337,7 @@ AM_CONDITIONAL([BUILD_TIGER],       [test "x$build_test_tiger" = "xyes"])
 AM_CONDITIONAL([BUILD_IMAGE],       [test "x$build_test_image" = "xyes"])
 AM_CONDITIONAL([BUILD_PATTERN],     [test "x$build_test_pattern" = "xyes"])
 AM_CONDITIONAL([BUILD_BLEND],       [test "x$build_test_blend" = "xyes"])
+AM_CONDITIONAL([BUILD_EGL],         [test "x$build_test_egl" = "xyes"])
 
 AC_OUTPUT([
 Makefile
@@ -368,6 +374,7 @@ VulkanVG will be compiled with the following example programs
   Images                    ${build_test_image}
   Pattern paint             ${build_test_pattern}
   Blending                  ${build_test_blend}
+  EGL                       ${build_test_egl}
 "
 
 if test "x$has_glut_h" = "xno"; then

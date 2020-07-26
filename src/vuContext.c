@@ -42,6 +42,10 @@ EGLAPI EGLBoolean EGLAPIENTRY eglInitialize (EGLDisplay dpy, EGLint *major, EGLi
 		return EGL_FALSE;
 
 	s_vkInstance = vkInstance;
+
+	/* Update the EGL version numbers */
+	if(major) *major = 1;
+	if(minor) *minor = 2;
 	
 	return EGL_TRUE;
 }
