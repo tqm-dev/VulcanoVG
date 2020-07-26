@@ -4,8 +4,41 @@
 #include <string.h>
 #include <stdio.h>
 
+static VkInstance s_vkInstance;
+
 EGLAPI EGLBoolean EGLAPIENTRY eglInitialize (EGLDisplay dpy, EGLint *major, EGLint *minor)
 {
+	VkApplicationInfo appInfo;
+	VkInstanceCreateInfo createInfo;
+	VkInstance vkInstance;
+	VkResult result;
+
+	/* App info */
+	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+	appInfo.pApplicationName = "VulkanVG";
+	appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+	appInfo.pEngineName = "No Engine";
+	appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+	appInfo.apiVersion = VK_API_VERSION_1_2;
+
+	/* Instance create info */
+	createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	createInfo.pNext = NULL;
+	createInfo.flags = 0;
+	createInfo.pApplicationInfo = &appInfo;
+	createInfo.enabledLayerCount = 0;
+	createInfo.ppEnabledLayerNames = NULL;
+	createInfo.enabledExtensionCount = 0;
+	createInfo.ppEnabledExtensionNames = NULL;
+
+	/* Instance */
+	result = vkCreateInstance(&createInfo, NULL, &vkInstance);
+
+	if(result != VK_SUCCESS)
+		return EGL_FALSE;
+
+	s_vkInstance = vkInstance;
+	
 	return EGL_TRUE;
 }
 

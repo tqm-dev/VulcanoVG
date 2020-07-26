@@ -169,6 +169,9 @@ SHfloat getMaxFloat();
 #  include <GL/glx.h>
 #endif
 
+/* Vulkan headers */
+#include <vulkan/vulkan.h>
+
 #include "shExtensions.h"
 
 
