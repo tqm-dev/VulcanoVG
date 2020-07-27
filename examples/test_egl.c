@@ -29,6 +29,9 @@ int main(int argc, char **argv)
 		assert(num_config == 1);
 	}
 
+	ret = eglBindAPI(EGL_OPENVG_API);
+	assert(ret == EGL_TRUE);
+
 	ctx = eglCreateContext(dpy, config, EGL_NO_CONTEXT, NULL);
 	assert(ctx != EGL_NO_CONTEXT);
 
