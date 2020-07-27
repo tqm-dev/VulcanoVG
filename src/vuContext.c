@@ -263,3 +263,32 @@ EGLAPI EGLint EGLAPIENTRY eglGetError (void)
 	return EGL_NONE;
 }
 
+EGLAPI EGLBoolean EGLAPIENTRY eglBindAPI (EGLenum api)
+{
+	if(api != EGL_OPENVG_API)
+		return EGL_FALSE;
+
+	return EGL_TRUE;
+}
+
+EGLAPI EGLenum EGLAPIENTRY eglQueryAPI (void)
+{
+	return 0;
+}
+
+EGLAPI EGLSurface EGLAPIENTRY eglCreatePbufferFromClientBuffer (EGLDisplay dpy, EGLenum buftype, EGLClientBuffer buffer, EGLConfig config, const EGLint *attrib_list)
+{
+	return EGL_NO_SURFACE;
+}
+
+EGLAPI EGLBoolean EGLAPIENTRY eglReleaseThread (void)
+{
+	return EGL_TRUE;
+}
+
+EGLAPI EGLBoolean EGLAPIENTRY eglWaitClient (void)
+{
+	return EGL_TRUE;
+}
+
+
