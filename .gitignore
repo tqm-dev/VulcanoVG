@@ -56,6 +56,9 @@ examples/test_tiger-test_tiger_paths.o
 examples/test_vgu
 examples/test_vgu-test.o
 examples/test_vgu-test_vgu.o
+examples/test_egl
+examples/test_egl-test.o
+examples/test_egl-test_egl.o
 src/.libs/
 src/libOpenVG.la
 src/libOpenVG_la-shArrays.lo
@@ -80,3 +83,7 @@ src/libOpenVG_la-shVectors.lo
 src/libOpenVG_la-shVectors.o
 src/libOpenVG_la-shVgu.lo
 src/libOpenVG_la-shVgu.o
+src/libEGL.la
+src/libEGL_la-vuContext.lo
+src/libEGL_la-vuContext.o
+

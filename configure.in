@@ -60,6 +60,11 @@ AC_ARG_WITH(
 	[  --with-example-blend          Build Blending example (default=yes)],
 	[build_test_blend=$withval], [build_test_blend="$build_test_all"])
 
+AC_ARG_WITH(
+	[example-egl],
+	[  --with-example-vgu            Build EGL example (default=yes)],
+	[build_test_egl=$withval], [build_test_egl="$build_test_all"])
+
 # ==============================================
 # Integer types
 
@@ -103,6 +108,7 @@ case "${host}" in
 *)
 	GL_DIR="GL"
 	GLUT_DIR="GL"
+	VULKAN_DIR="vulkan"
 	GL_LIB="-lGL"
 	GLU_LIB="-lGLU"
 	GLUT_LIB="-lglut"
@@ -176,6 +182,22 @@ AC_LINK_IFELSE([
 	[has_glut="no"] && [echo "no"])
 
 LDFLAGS=""
+
+# ==============================================
+# Check for Vulkan headers
+AC_CHECK_HEADERS(
+	[$VULKAN_DIR/vulkan.h],
+	[has_vulkan_h="yes"], [has_vulkan_h="no"])
+
+# ===============================================
+# Check for Vulkan libraries
+
+echo -n "checking for Vulkan library... "
+AC_LINK_IFELSE([
+	char vkCreateInstance();
+	int main(void) {vkCreateInstance(); return 0;}],
+	[has_vulkan="yes"] && [echo "yes"],
+	[has_vulkan="no"] && [echo "no"])
 
 # ==============================================
 # JPEG library required for VGImage example
@@ -255,6 +277,18 @@ NO_GLX_MSG="
 	without GLX library.
 "
 
+NO_VULKAN_H_MSG="
+
+	vulkan.h header missing! VulkanVG cannot be built without
+	Vulkan headers.
+"
+
+NO_VULKAN_MSG="
+
+	Failed linking with Vulkan library! VulkanVG cannot be built
+	without Vulkan library.
+"
+
 if test "x$has_gl_h" = "xno"; then
 	AC_MSG_FAILURE([$NO_GL_H_MSG])
 fi
@@ -281,6 +315,14 @@ case "${host}" in
 	fi ;;
 esac
 
+if test "x$has_vulkan_h" = "xno"; then
+	AC_MSG_FAILURE([$NO_VULKAN_H_MSG])
+fi
+
+if test "x$has_vulkan" = "xno"; then
+	AC_MSG_FAILURE([$NO_VULKAN_MSG])
+fi
+
 # ========================================================
 # Setup automake conditionals according to configuration
 
@@ -295,6 +337,7 @@ AM_CONDITIONAL([BUILD_TIGER],       [test "x$build_test_tiger" = "xyes"])
 AM_CONDITIONAL([BUILD_IMAGE],       [test "x$build_test_image" = "xyes"])
 AM_CONDITIONAL([BUILD_PATTERN],     [test "x$build_test_pattern" = "xyes"])
 AM_CONDITIONAL([BUILD_BLEND],       [test "x$build_test_blend" = "xyes"])
+AM_CONDITIONAL([BUILD_EGL],         [test "x$build_test_egl" = "xyes"])
 
 AC_OUTPUT([
 Makefile
@@ -309,12 +352,14 @@ examples/Makefile
 #echo "GLX headers present     $has_glx_h"
 #echo "GLUT headers present    $has_glut_h"
 #echo "JPEG headers present    $has_jpeg_h"
+#echo "VULKAN headers present  $has_vulkan_h"
 #echo ""
 #echo "GL library present      $has_gl"
 #echo "GLU library present     $has_glu"
 #echo "GLX library present     $has_glx"
 #echo "GLUT library present    $has_glut"
 #echo "JPEG library present    $has_jpeg"
+#echo "Vulkan library present  $has_vulkan"
 
 EXAMPLES_LIST="
 VulkanVG will be compiled with the following example programs
@@ -329,6 +374,7 @@ VulkanVG will be compiled with the following example programs
   Images                    ${build_test_image}
   Pattern paint             ${build_test_pattern}
   Blending                  ${build_test_blend}
+  EGL                       ${build_test_egl}
 "
 
 if test "x$has_glut_h" = "xno"; then

@@ -1,14 +1,16 @@
 # Relative path from here to uninstalled library
-INCLUDE_VG_DIR = $(top_builddir)/include
+INCLUDE_DIR = $(top_builddir)/include
 LIB_VG_DIR = $(top_builddir)/src
-LIB_VG = ${LIB_VG_DIR}/libOpenVG.la
+LIB_EGL_DIR = $(top_builddir)/src
+LIB_VULKAN_VG = ${LIB_VG_DIR}/libOpenVG.la \
+                ${LIB_EGL_DIR}/libEGL.la
 
 # Variables which are common to all example programs
 # (Combine variables passed from configure script with
 # the local path to uninstalled library)
 EXAMPLE_SRCS = test.h test.c
-EXAMPLE_CF = @CONFIG_CFLAGS@ -I${INCLUDE_VG_DIR} -I${prefix}/include
-EXAMPLE_LA = @CONFIG_LDADD@ ${LIB_VG}
+EXAMPLE_CF = @CONFIG_CFLAGS@ -I${INCLUDE_DIR} -I${prefix}/include
+EXAMPLE_LA = @CONFIG_LDADD@ ${LIB_VULKAN_VG}
 EXAMPLE_LF = @CONFIG_LDFLAGS@ -L${prefix}/lib
 
 EXTRA_DIST = *.jpg *.png
@@ -51,6 +53,10 @@ if BUILD_BLEND
 noinst_PROGRAMS += test_blend
 endif
 
+if BUILD_EGL
+noinst_PROGRAMS += test_egl
+endif
+
 test_vgu_SOURCES =\
 	${EXAMPLE_SRCS} test_vgu.c
 
@@ -78,6 +84,8 @@ test_pattern_SOURCES =\
 test_blend_SOURCES =\
 	${EXAMPLE_SRCS} test_blend.c
 
+test_egl_SOURCES =\
+	${EXAMPLE_SRCS} test_egl.c
 
 test_vgu_CFLAGS = ${EXAMPLE_CF}
 test_vgu_LDADD = ${EXAMPLE_LA}
@@ -114,3 +122,8 @@ test_pattern_LDFLAGS = ${EXAMPLE_LF}
 test_blend_CFLAGS = ${EXAMPLE_CF}
 test_blend_LDADD = ${EXAMPLE_LA}
 test_blend_LDFLAGS = ${EXAMPLE_LF}
+
+test_egl_CFLAGS = ${EXAMPLE_CF}
+test_egl_LDADD = ${EXAMPLE_LA}
+test_egl_LDFLAGS = ${EXAMPLE_LF}
+

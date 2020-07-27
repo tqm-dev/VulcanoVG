@@ -155,6 +155,8 @@ SHfloat getMaxFloat();
 #define SH_GRADIENT_TEX_SIZE       1024
 #define SH_GRADIENT_TEX_COORDSIZE   4096 /* 1024 * RGBA */
 
+#define VU_RENDERING_ENGINE_VULKAN		0
+
 /* OpenGL headers */
 
 #if defined(__APPLE__)
@@ -168,6 +170,9 @@ SHfloat getMaxFloat();
 #  include <GL/glu.h>
 #  include <GL/glx.h>
 #endif
+
+/* Vulkan headers */
+#include <vulkan/vulkan.h>
 
 #include "shExtensions.h"
 
