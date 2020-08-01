@@ -1,7 +1,7 @@
 lib_LTLIBRARIES =
 
 lib_LTLIBRARIES += libOpenVG.la
-libOpenVG_la_CFLAGS = -ansi -pedantic -I$(top_builddir)/include/vg
+libOpenVG_la_CFLAGS = -pedantic -I$(top_builddir)/include/vg
 libOpenVG_la_SOURCES =\
 	vg/shDefs.h\
 	vg/shExtensions.h\
@@ -32,11 +32,28 @@ VG_include_HEADERS =\
 
 lib_LTLIBRARIES += libEGL.la
 libEGL_la_CFLAGS = \
-	-ansi -pedantic -I$(top_builddir)/include/egl \
-	-ansi -pedantic -I$(top_builddir)/include/vg \
-	-ansi -pedantic -I$(top_builddir)/src/vg
+	-pedantic -I$(top_builddir)/include \
+	-pedantic -I$(top_builddir)/include/egl \
+	-pedantic -I$(top_builddir)/include/vg \
+	-pedantic -I$(top_builddir)/src/vg \
+	-pedantic -I$(top_builddir)/src/util
 libEGL_la_SOURCES =\
-	egl/vuContext.c
+	egl/eglapi.c\
+	egl/eglarray.c\
+	egl/eglconfig.c\
+	egl/eglcontext.c\
+	egl/eglcurrent.c\
+	egl/egldevice.c\
+	egl/egldispatchstubs.c\
+	egl/egldisplay.c\
+	egl/egldriver.c\
+	egl/eglglobals.c\
+	egl/eglglvnd.c\
+	egl/eglimage.c\
+	egl/egllog.c\
+	egl/eglsurface.c\
+	egl/eglsync.c
+
 EGL_includedir = $(includedir)/egl
 EGL_include_HEADERS =\
 	$(top_builddir)/include/egl/egl.h\

@@ -1,6 +1,6 @@
 AC_INIT(VulkanVG, 0.2.1)
 AC_CONFIG_HEADERS([config.h:config.h.in])
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([gnu subdir-objects])
 AC_CANONICAL_HOST
 
 AC_PROG_CC
