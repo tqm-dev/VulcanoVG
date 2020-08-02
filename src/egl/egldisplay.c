@@ -87,8 +87,7 @@ _eglGetNativePlatformFromEnv(void)
    const char *plat_name;
    EGLint i;
 
-   static_assert(ARRAY_SIZE(egl_platforms) == _EGL_NUM_PLATFORMS,
-                 "Missing platform");
+   STATIC_ASSERT(ARRAY_SIZE(egl_platforms) == _EGL_NUM_PLATFORMS);
 
    plat_name = getenv("EGL_PLATFORM");
    /* try deprecated env variable */

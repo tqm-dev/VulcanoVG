@@ -62,10 +62,15 @@
  * Basically, use COND to dimension an array.  If COND is false/zero the
  * array size will be -1 and we'll get a compilation error.
  */
+#if 1
+	//TODO:This path will be delete if driver implemented.
+#define STATIC_ASSERT(COND)
+#else
 #define STATIC_ASSERT(COND) \
    do { \
       (void) sizeof(char [1 - 2*!(COND)]); \
    } while (0)
+#endif
 
 
 /**

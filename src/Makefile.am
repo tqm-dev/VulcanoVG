@@ -44,15 +44,14 @@ libEGL_la_SOURCES =\
 	egl/eglcontext.c\
 	egl/eglcurrent.c\
 	egl/egldevice.c\
-	egl/egldispatchstubs.c\
 	egl/egldisplay.c\
 	egl/egldriver.c\
 	egl/eglglobals.c\
-	egl/eglglvnd.c\
 	egl/eglimage.c\
 	egl/egllog.c\
 	egl/eglsurface.c\
-	egl/eglsync.c
+	egl/eglsync.c\
+	egl/egldriver_vulkan.c
 
 EGL_includedir = $(includedir)/egl
 EGL_include_HEADERS =\
