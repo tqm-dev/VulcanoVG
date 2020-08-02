@@ -44,14 +44,11 @@ Configuration macro:
     Otherwise use mtx_trylock() + *busy loop* emulation.
 */
 #if !defined(__CYGWIN__) && !defined(__APPLE__) && !defined(__NetBSD__)
-//TODO Temporal disabled #define EMULATED_THREADS_USE_NATIVE_TIMEDLOCK
+#define EMULATED_THREADS_USE_NATIVE_TIMEDLOCK
 #endif
 
 
 #include <pthread.h>
-
-// For timespec and nanosleep, used below.
-# include <time.h>
 
 /*---------------------------- macros ----------------------------*/
 #define ONCE_FLAG_INIT PTHREAD_ONCE_INIT
