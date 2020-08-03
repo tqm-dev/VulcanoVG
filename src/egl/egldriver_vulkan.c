@@ -38,16 +38,38 @@
 #include <unistd.h>
 #include <c11/threads.h>
 #include <time.h>
+#include <vulkan/vulkan.h>
 #include "egldefines.h"
 #include "egldriver.h"
+#include "egldisplay.h"
 
+static EGLBoolean
+_Initialize(_EGLDriver *drv, _EGLDisplay *disp)
+{
+	EGLBoolean ret = EGL_FALSE;
+	VkInstance vkInstance;
 
+	switch (disp->Platform) {
+		case _EGL_PLATFORM_VULKAN:
+			vkInstance = (VkInstance)disp->PlatformDisplay;
+			if(vkInstance)
+				ret = EGL_TRUE;
+			break;
+		case _EGL_PLATFORM_SURFACELESS:
+		case _EGL_PLATFORM_DEVICE:
+		case _EGL_PLATFORM_X11:
+		case _EGL_PLATFORM_DRM:
+		case _EGL_PLATFORM_WAYLAND:
+		case _EGL_PLATFORM_ANDROID:
+		default:
+			return EGL_FALSE;
+	}
 
-
-
+	return ret;
+}
 
 _EGLDriver _eglDriver = {
-   .Initialize						= NULL,
+   .Initialize						= _Initialize,
    .Terminate						= NULL,
    .CreateContext					= NULL,
    .DestroyContext					= NULL,
