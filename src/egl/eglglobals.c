@@ -41,12 +41,6 @@
 
 #include "util/macros.h"
 
-#ifdef HAVE_MINCORE
-#include <unistd.h>
-#include <sys/mman.h>
-#endif
-
-
 static mtx_t _eglGlobalMutex = _MTX_INITIALIZER_NP;
 
 struct _egl_global _eglGlobal =
@@ -136,33 +130,5 @@ _eglPointerIsDereferencable(void *p)
 {
    uintptr_t addr = (uintptr_t) p;
    const long page_size = getpagesize();
-#ifdef HAVE_MINCORE
-   unsigned char valid = 0;
-
-   if (p == NULL)
-      return EGL_FALSE;
-
-   /* align addr to page_size */
-   addr &= ~(page_size - 1);
-
-   if (mincore((void *) addr, page_size, &valid) < 0) {
-      return EGL_FALSE;
-   }
-
-   /* mincore() returns 0 on success, and -1 on failure.  The last parameter
-    * is a vector of bytes with one entry for each page queried.  mincore
-    * returns page residency information in the first bit of each byte in the
-    * vector.
-    *
-    * Residency doesn't actually matter when determining whether a pointer is
-    * dereferenceable, so the output vector can be ignored.  What matters is
-    * whether mincore succeeds. See:
-    *
-    *   http://man7.org/linux/man-pages/man2/mincore.2.html
-    */
-   return EGL_TRUE;
-#else
-   // Without mincore(), we just assume that the first page is unmapped.
    return addr >= page_size;
-#endif
 }

@@ -25,9 +25,6 @@
  *
  **************************************************************************/
 
-#ifdef HAVE_LIBDRM
-#include <xf86drm.h>
-#endif
 #include "util/macros.h"
 
 #include "eglcurrent.h"
@@ -44,10 +41,6 @@ struct _egl_device {
 
    EGLBoolean MESA_device_software;
    EGLBoolean EXT_device_drm;
-
-#ifdef HAVE_LIBDRM
-   drmDevicePtr device;
-#endif
 };
 
 void
@@ -69,10 +62,6 @@ _eglFiniDevice(void)
       dev = dev_list;
       dev_list = dev_list->Next;
 
-#ifdef HAVE_LIBDRM
-      assert(_eglDeviceSupports(dev, _EGL_DEVICE_DRM));
-      drmFreeDevice(&dev->device);
-#endif
       free(dev);
    }
 
@@ -100,55 +89,6 @@ _EGLDevice _eglSoftwareDevice = {
    .MESA_device_software = EGL_TRUE,
 };
 
-#ifdef HAVE_LIBDRM
-/*
- * Negative value on error, zero if newly added, one if already in list.
- */
-static int
-_eglAddDRMDevice(drmDevicePtr device, _EGLDevice **out_dev)
-{
-   _EGLDevice *dev;
-   const int wanted_nodes = 1 << DRM_NODE_RENDER | 1 << DRM_NODE_PRIMARY;
-
-   if ((device->available_nodes & wanted_nodes) != wanted_nodes)
-      return -1;
-
-   dev = _eglGlobal.DeviceList;
-
-   /* The first device is always software */
-   assert(dev);
-   assert(_eglDeviceSupports(dev, _EGL_DEVICE_SOFTWARE));
-
-   while (dev->Next) {
-      dev = dev->Next;
-
-      assert(_eglDeviceSupports(dev, _EGL_DEVICE_DRM));
-      if (drmDevicesEqual(device, dev->device) != 0) {
-         if (out_dev)
-            *out_dev = dev;
-         return 1;
-      }
-   }
-
-   dev->Next = calloc(1, sizeof(_EGLDevice));
-   if (!dev->Next) {
-      if (out_dev)
-         *out_dev = NULL;
-      return -1;
-   }
-
-   dev = dev->Next;
-   dev->extensions = "EGL_EXT_device_drm";
-   dev->EXT_device_drm = EGL_TRUE;
-   dev->device = device;
-
-   if (out_dev)
-      *out_dev = dev;
-
-   return 0;
-}
-#endif
-
 /* Adds a device in DeviceList, if needed for the given fd.
  *
  * If a software device, the fd is ignored.
@@ -167,21 +107,8 @@ _eglAddDevice(int fd, bool software)
    if (software)
       goto out;
 
-#ifdef HAVE_LIBDRM
-   drmDevicePtr device;
-
-   if (drmGetDevice2(fd, 0, &device) != 0) {
-      dev = NULL;
-      goto out;
-   }
-
-   /* Device is not added - error or already present */
-   if (_eglAddDRMDevice(device, &dev) != 0)
-      drmFreeDevice(&device);
-#else
    _eglLog(_EGL_FATAL, "Driver bug: Built without libdrm, yet looking for HW device");
    dev = NULL;
-#endif
 
 out:
    mtx_unlock(_eglGlobal.Mutex);
@@ -211,11 +138,7 @@ _eglDeviceSupports(_EGLDevice *dev, _EGLDeviceExtension ext)
 const char *
 _eglGetDRMDeviceRenderNode(_EGLDevice *dev)
 {
-#ifdef HAVE_LIBDRM
-   return dev->device->nodes[DRM_NODE_RENDER];
-#else
    return NULL;
-#endif
 }
 
 EGLBoolean
@@ -235,11 +158,6 @@ _eglQueryDeviceStringEXT(_EGLDevice *dev, EGLint name)
    switch (name) {
    case EGL_EXTENSIONS:
       return dev->extensions;
-#ifdef HAVE_LIBDRM
-   case EGL_DRM_DEVICE_FILE_EXT:
-      if (_eglDeviceSupports(dev, _EGL_DEVICE_DRM))
-         return dev->device->nodes[DRM_NODE_PRIMARY];
-#endif
       /* fall through */
    default:
       _eglError(EGL_BAD_PARAMETER, "eglQueryDeviceStringEXT");
@@ -266,23 +184,6 @@ _eglRefreshDeviceList(void)
    assert(dev);
    assert(_eglDeviceSupports(dev, _EGL_DEVICE_SOFTWARE));
    count++;
-
-#ifdef HAVE_LIBDRM
-   drmDevicePtr devices[64];
-   int num_devs, ret;
-
-   num_devs = drmGetDevices2(0, devices, ARRAY_SIZE(devices));
-   for (int i = 0; i < num_devs; i++) {
-      ret = _eglAddDRMDevice(devices[i], NULL);
-
-      /* Device is not added - error or already present */
-      if (ret != 0)
-         drmFreeDevice(&devices[i]);
-
-      if (ret >= 0)
-         count++;
-   }
-#endif
 
    return count;
 }
