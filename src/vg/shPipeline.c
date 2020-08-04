@@ -307,10 +307,12 @@ VG_API_CALL void vgDrawPath(VGPath path, VGbitfield paintModes)
      surface space for better path resolution */
   if (shIsTessCacheValid( context, p ) == VG_FALSE)
   {
-    if (shInvertMatrix(&context->pathTransform, &mi)) {
-      shFlattenPath(p, 1);
+    int inverted = shInvertMatrix(&context->pathTransform, &mi);
+
+    shFlattenPath(p, inverted);
+    if(inverted)
       shTransformVertices(&mi, p);
-    }else shFlattenPath(p, 0);
+
     shFindBoundbox(p);
   }
   
