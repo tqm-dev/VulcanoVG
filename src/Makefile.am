@@ -49,7 +49,7 @@ libEGL_la_SOURCES =\
 	EGL/egllog.c\
 	EGL/eglsurface.c\
 	EGL/eglsync.c\
-	EGL/egldriver_vulkan.c
+	EGL/egldriverVulkan.c
 
 EGL_includedir = $(includedir)/EGL
 EGL_include_HEADERS =\
