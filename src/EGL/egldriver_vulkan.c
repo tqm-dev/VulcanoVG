@@ -77,33 +77,50 @@ static VkInstance _createVkInstanceInternal(void)
    return vkInstance;
 }
 
+static VkPhysicalDevice* _enumeratePhysicalDevices(VkInstance instance, uint32_t* pCount)
+{
+   VkPhysicalDevice* pPhyDevs;
+
+   // Performance_query to get the number of the GPUs.
+   // If it does not work on your GPUs, 
+   // execute below command: (for intel GPUs)
+   // $ sudo sysctl -w dev.i915.perf_stream_paranoid=0
+   vkEnumeratePhysicalDevices(instance, pCount, NULL);
+
+   pPhyDevs = (VkPhysicalDevice*)malloc(sizeof(VkPhysicalDevice) * (*pCount));
+   vkEnumeratePhysicalDevices(instance, pCount, pPhyDevs);
+
+   return pPhyDevs;
+}
+
 static EGLBoolean
 _Initialize(_EGLDriver *drv, _EGLDisplay *disp)
 {
 	EGLBoolean ret = EGL_FALSE;
 	VkInstance vkInstance;
+	VkPhysicalDevice* phyDevList;
+	uint32_t countPhyDev;
 
 	switch (disp->Platform) {
 		case _EGL_PLATFORM_VULKAN_SURFACELESS:
 			// Vulkan instance was already set by the client
 			vkInstance = (VkInstance)disp->PlatformDisplay;
-			if(vkInstance)
-				ret = EGL_TRUE;
 			break;
 		case _EGL_PLATFORM_VULKAN:
 			// Vulkan instance needs to be created by this driver
-			vkInstance = (VkInstance)disp->PlatformDisplay;
 			vkInstance = _createVkInstanceInternal();
-			if(vkInstance){
-				disp->PlatformDisplay = (void*)vkInstance;
-				ret = EGL_TRUE;
-			}
+			disp->PlatformDisplay = (void*)vkInstance;
 			break;
 		default:
 			return EGL_FALSE;
 	}
 
-	return ret;
+	if(!vkInstance)
+		return EGL_FALSE;
+
+	phyDevList = _enumeratePhysicalDevices(vkInstance, &countPhyDev);
+
+	return EGL_TRUE;
 }
 
 _EGLDriver _eglDriver = {
