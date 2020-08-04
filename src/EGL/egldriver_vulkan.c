@@ -96,31 +96,31 @@ static VkPhysicalDevice* _enumeratePhysicalDevices(VkInstance instance, uint32_t
 static EGLBoolean
 _Initialize(_EGLDriver *drv, _EGLDisplay *disp)
 {
-	EGLBoolean ret = EGL_FALSE;
-	VkInstance vkInstance;
-	VkPhysicalDevice* phyDevList;
-	uint32_t countPhyDev;
-
-	switch (disp->Platform) {
-		case _EGL_PLATFORM_VULKAN_SURFACELESS:
-			// Vulkan instance was already set by the client
-			vkInstance = (VkInstance)disp->PlatformDisplay;
-			break;
-		case _EGL_PLATFORM_VULKAN:
-			// Vulkan instance needs to be created by this driver
-			vkInstance = _createVkInstanceInternal();
-			disp->PlatformDisplay = (void*)vkInstance;
-			break;
-		default:
-			return EGL_FALSE;
-	}
-
-	if(!vkInstance)
-		return EGL_FALSE;
-
-	phyDevList = _enumeratePhysicalDevices(vkInstance, &countPhyDev);
-
-	return EGL_TRUE;
+   EGLBoolean ret = EGL_FALSE;
+   VkInstance vkInstance;
+   VkPhysicalDevice* phyDevList;
+   uint32_t countPhyDev;
+   
+   switch (disp->Platform) {
+      case _EGL_PLATFORM_VULKAN_SURFACELESS:
+      // Vulkan instance was already set by the client
+      vkInstance = (VkInstance)disp->PlatformDisplay;
+      break;
+   case _EGL_PLATFORM_VULKAN:
+      // Vulkan instance needs to be created by this driver
+      vkInstance = _createVkInstanceInternal();
+      disp->PlatformDisplay = (void*)vkInstance;
+      break;
+   default:
+      return EGL_FALSE;
+   }
+   
+   if(!vkInstance)
+      return EGL_FALSE;
+   
+   phyDevList = _enumeratePhysicalDevices(vkInstance, &countPhyDev);
+   
+   return EGL_TRUE;
 }
 
 _EGLDriver _eglDriver = {
