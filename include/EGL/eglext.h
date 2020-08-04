@@ -883,6 +883,16 @@ EGLAPI EGLSurface EGLAPIENTRY eglCreatePlatformPixmapSurfaceEXT (EGLDisplay dpy,
 #define EGL_PLATFORM_X11_SCREEN_EXT       0x31D6
 #endif /* EGL_EXT_platform_x11 */
 
+#ifndef EGL_platform_vulkan
+#define EGL_platform_vulkan 1
+#define EGL_PLATFORM_VULKAN                 0x32DD
+#endif /* EGL_platform_vulkan */
+
+#ifndef EGL_platform_vulkan_surfaceless
+#define EGL_platform_vulkan_surfaceless 1
+#define EGL_PLATFORM_VULKAN_SURFACELESS     0x32D1
+#endif /* EGL_platform_vulkan_surfaceless */
+
 #ifndef EGL_EXT_protected_content
 #define EGL_EXT_protected_content 1
 #define EGL_PROTECTED_CONTENT_EXT         0x32C0

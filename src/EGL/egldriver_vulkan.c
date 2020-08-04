@@ -99,12 +99,6 @@ _Initialize(_EGLDriver *drv, _EGLDisplay *disp)
 				ret = EGL_TRUE;
 			}
 			break;
-		case _EGL_PLATFORM_SURFACELESS:
-		case _EGL_PLATFORM_DEVICE:
-		case _EGL_PLATFORM_X11:
-		case _EGL_PLATFORM_DRM:
-		case _EGL_PLATFORM_WAYLAND:
-		case _EGL_PLATFORM_ANDROID:
 		default:
 			return EGL_FALSE;
 	}

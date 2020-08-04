@@ -76,18 +76,6 @@ struct _egl_global _eglGlobal =
 #endif
 
    "EGL_EXT_platform_device"
-#ifdef HAVE_WAYLAND_PLATFORM
-   " EGL_EXT_platform_wayland"
-   " EGL_KHR_platform_wayland"
-#endif
-#ifdef HAVE_X11_PLATFORM
-   " EGL_EXT_platform_x11"
-   " EGL_KHR_platform_x11"
-#endif
-#ifdef HAVE_DRM_PLATFORM
-   " EGL_MESA_platform_gbm"
-   " EGL_KHR_platform_gbm"
-#endif
    " EGL_MESA_platform_surfaceless"
    "",
 

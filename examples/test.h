@@ -20,9 +20,9 @@
 
 #include "GL/glext.h"
 
-#include <vg/openvg.h>
-#include <vg/vgu.h>
-#include <egl/egl.h>
+#include <VG/openvg.h>
+#include <VG/vgu.h>
+#include <EGL/egl.h>
 
 typedef enum {
     TEST_CALLBACK_DISPLAY      = 0,

@@ -381,33 +381,11 @@ _eglGetPlatformDisplayCommon(EGLenum platform, void *native_display,
    _EGLDisplay *disp;
 
    switch (platform) {
-#ifdef HAVE_X11_PLATFORM
-   case EGL_PLATFORM_X11_EXT:
-      disp = _eglGetX11Display((Display*) native_display, attrib_list);
+   case EGL_PLATFORM_VULKAN:
+      disp = _eglGetVulkanDisplay(native_display, attrib_list);
       break;
-#endif
-#ifdef HAVE_DRM_PLATFORM
-   case EGL_PLATFORM_GBM_MESA:
-      disp = _eglGetGbmDisplay((struct gbm_device*) native_display,
-                              attrib_list);
-      break;
-#endif
-#ifdef HAVE_WAYLAND_PLATFORM
-   case EGL_PLATFORM_WAYLAND_EXT:
-      disp = _eglGetWaylandDisplay((struct wl_display*) native_display,
-                                  attrib_list);
-      break;
-#endif
-   case EGL_PLATFORM_SURFACELESS_MESA:
-      disp = _eglGetSurfacelessDisplay(native_display, attrib_list);
-      break;
-#ifdef HAVE_ANDROID_PLATFORM
-   case EGL_PLATFORM_ANDROID_KHR:
-      disp = _eglGetAndroidDisplay(native_display, attrib_list);
-      break;
-#endif
-   case EGL_PLATFORM_DEVICE_EXT:
-      disp = _eglGetDeviceDisplay(native_display, attrib_list);
+   case EGL_PLATFORM_VULKAN_SURFACELESS:
+      disp = _eglGetVulkanSurfacelessDisplay(native_display, attrib_list);
       break;
    default:
       RETURN_EGL_ERROR(NULL, EGL_BAD_PARAMETER, NULL);
@@ -926,8 +904,7 @@ _eglCreateWindowSurfaceCommon(_EGLDisplay *disp, EGLConfig config,
    if (native_window == NULL)
       RETURN_EGL_ERROR(disp, EGL_BAD_NATIVE_WINDOW, EGL_NO_SURFACE);
 
-   if (disp && (disp->Platform == _EGL_PLATFORM_SURFACELESS ||
-                disp->Platform == _EGL_PLATFORM_DEVICE)) {
+   if (disp && (disp->Platform == _EGL_PLATFORM_VULKAN_SURFACELESS)) {
       /* From the EGL_MESA_platform_surfaceless spec (v1):
        *
        *    eglCreatePlatformWindowSurface fails when called with a <display>
@@ -974,18 +951,6 @@ eglCreateWindowSurface(EGLDisplay dpy, EGLConfig config,
 static void *
 _fixupNativeWindow(_EGLDisplay *disp, void *native_window)
 {
-#ifdef HAVE_X11_PLATFORM
-   if (disp && disp->Platform == _EGL_PLATFORM_X11 && native_window != NULL) {
-      /* The `native_window` parameter for the X11 platform differs between
-       * eglCreateWindowSurface() and eglCreatePlatformPixmapSurfaceEXT(). In
-       * eglCreateWindowSurface(), the type of `native_window` is an Xlib
-       * `Window`. In eglCreatePlatformWindowSurfaceEXT(), the type is
-       * `Window*`.  Convert `Window*` to `Window` because that's what
-       * dri2_x11_create_window_surface() expects.
-       */
-      return (void *)(* (Window*) native_window);
-   }
-#endif
    return native_window;
 }
 
@@ -1014,17 +979,6 @@ eglCreatePlatformWindowSurface(EGLDisplay dpy, EGLConfig config,
 static void *
 _fixupNativePixmap(_EGLDisplay *disp, void *native_pixmap)
 {
-#ifdef HAVE_X11_PLATFORM
-   /* The `native_pixmap` parameter for the X11 platform differs between
-    * eglCreatePixmapSurface() and eglCreatePlatformPixmapSurfaceEXT(). In
-    * eglCreatePixmapSurface(), the type of `native_pixmap` is an Xlib
-    * `Pixmap`. In eglCreatePlatformPixmapSurfaceEXT(), the type is
-    * `Pixmap*`.  Convert `Pixmap*` to `Pixmap` because that's what
-    * dri2_x11_create_pixmap_surface() expects.
-    */
-   if (disp && disp->Platform == _EGL_PLATFORM_X11 && native_pixmap != NULL)
-      return (void *)(* (Pixmap*) native_pixmap);
-#endif
    return native_pixmap;
 }
 
@@ -1037,8 +991,7 @@ _eglCreatePixmapSurfaceCommon(_EGLDisplay *disp, EGLConfig config,
    _EGLSurface *surf;
    EGLSurface ret;
 
-   if (disp && (disp->Platform == _EGL_PLATFORM_SURFACELESS ||
-                disp->Platform == _EGL_PLATFORM_DEVICE)) {
+   if (disp && (disp->Platform == _EGL_PLATFORM_VULKAN_SURFACELESS)) {
       /* From the EGL_MESA_platform_surfaceless spec (v1):
        *
        *   [Like eglCreatePlatformWindowSurface,] eglCreatePlatformPixmapSurface

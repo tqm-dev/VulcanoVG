@@ -64,7 +64,7 @@ int main(int argc, char **argv)
 		};
 		ret = eglChooseConfig(dpy, attrib_list, &config, 1, &num_config);
 		printf("eglChooseConfig(): [%d] \r\n", ret);
-		assert(EGL_CAST(EGLint,config) == 0xff);
+		assert((uintptr_t)config == 0xff);
 		assert(num_config == 1);
 	}
 

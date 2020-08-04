@@ -51,14 +51,6 @@
 #include "eglimage.h"
 #include "eglsync.h"
 
-/* Includes for _eglNativePlatformDetectNativeDisplay */
-#ifdef HAVE_WAYLAND_PLATFORM
-#include <wayland-client.h>
-#endif
-#ifdef HAVE_DRM_PLATFORM
-#include <gbm.h>
-#endif
-
 
 /**
  * Map build-system platform names to platform types.
@@ -67,13 +59,6 @@ static const struct {
    _EGLPlatformType platform;
    const char *name;
 } egl_platforms[] = {
-   { _EGL_PLATFORM_X11, "x11" },
-   { _EGL_PLATFORM_WAYLAND, "wayland" },
-   { _EGL_PLATFORM_DRM, "drm" },
-   { _EGL_PLATFORM_ANDROID, "android" },
-   { _EGL_PLATFORM_HAIKU, "haiku" },
-   { _EGL_PLATFORM_SURFACELESS, "surfaceless" },
-   { _EGL_PLATFORM_DEVICE, "device" },
    { _EGL_PLATFORM_VULKAN, "vulkan" },
    { _EGL_PLATFORM_VULKAN_SURFACELESS, "vulkan surfaceless" },
 };
@@ -142,8 +127,7 @@ _eglGetNativePlatform(void *nativeDisplay)
    }
 
    if (detected_platform == _EGL_INVALID_PLATFORM) {
-      detected_platform = _EGL_NATIVE_PLATFORM;
-      detection_method = "build-time configuration";
+      return detected_platform;
    }
 
    _eglLog(_EGL_DEBUG, "Native platform type: %s (%s)",
@@ -466,58 +450,8 @@ _eglUnlinkResource(_EGLResource *res, _EGLResourceType type)
    assert(res->RefCount);
 }
 
-#ifdef HAVE_X11_PLATFORM
 _EGLDisplay*
-_eglGetX11Display(Display *native_display,
-                  const EGLAttrib *attrib_list)
-{
-   /* EGL_EXT_platform_x11 recognizes exactly one attribute,
-    * EGL_PLATFORM_X11_SCREEN_EXT, which is optional.
-    */
-   if (attrib_list != NULL) {
-      for (int i = 0; attrib_list[i] != EGL_NONE; i += 2) {
-         if (attrib_list[i] != EGL_PLATFORM_X11_SCREEN_EXT) {
-            _eglError(EGL_BAD_ATTRIBUTE, "eglGetPlatformDisplay");
-            return NULL;
-         }
-      }
-   }
-   return _eglFindDisplay(_EGL_PLATFORM_X11, native_display, attrib_list);
-}
-#endif /* HAVE_X11_PLATFORM */
-
-#ifdef HAVE_DRM_PLATFORM
-_EGLDisplay*
-_eglGetGbmDisplay(struct gbm_device *native_display,
-                  const EGLAttrib *attrib_list)
-{
-   /* EGL_MESA_platform_gbm recognizes no attributes. */
-   if (attrib_list != NULL && attrib_list[0] != EGL_NONE) {
-      _eglError(EGL_BAD_ATTRIBUTE, "eglGetPlatformDisplay");
-      return NULL;
-   }
-
-   return _eglFindDisplay(_EGL_PLATFORM_DRM, native_display, attrib_list);
-}
-#endif /* HAVE_DRM_PLATFORM */
-
-#ifdef HAVE_WAYLAND_PLATFORM
-_EGLDisplay*
-_eglGetWaylandDisplay(struct wl_display *native_display,
-                      const EGLAttrib *attrib_list)
-{
-   /* EGL_EXT_platform_wayland recognizes no attributes. */
-   if (attrib_list != NULL && attrib_list[0] != EGL_NONE) {
-      _eglError(EGL_BAD_ATTRIBUTE, "eglGetPlatformDisplay");
-      return NULL;
-   }
-
-   return _eglFindDisplay(_EGL_PLATFORM_WAYLAND, native_display, attrib_list);
-}
-#endif /* HAVE_WAYLAND_PLATFORM */
-
-_EGLDisplay*
-_eglGetSurfacelessDisplay(void *native_display,
+_eglGetVulkanDisplay(void *native_display,
                           const EGLAttrib *attrib_list)
 {
    /* This platform has no native display. */
@@ -532,15 +466,19 @@ _eglGetSurfacelessDisplay(void *native_display,
       return NULL;
    }
 
-   return _eglFindDisplay(_EGL_PLATFORM_SURFACELESS, native_display,
+   return _eglFindDisplay(_EGL_PLATFORM_VULKAN, native_display,
                           attrib_list);
 }
 
-#ifdef HAVE_ANDROID_PLATFORM
 _EGLDisplay*
-_eglGetAndroidDisplay(void *native_display,
+_eglGetVulkanSurfacelessDisplay(void *native_display,
                           const EGLAttrib *attrib_list)
 {
+   /* This platform has no native display. */
+   if (native_display != NULL) {
+      _eglError(EGL_BAD_PARAMETER, "eglGetPlatformDisplay");
+      return NULL;
+   }
 
    /* This platform recognizes no display attributes. */
    if (attrib_list != NULL && attrib_list[0] != EGL_NONE) {
@@ -548,66 +486,7 @@ _eglGetAndroidDisplay(void *native_display,
       return NULL;
    }
 
-   return _eglFindDisplay(_EGL_PLATFORM_ANDROID, native_display,
+   return _eglFindDisplay(_EGL_PLATFORM_VULKAN_SURFACELESS, native_display,
                           attrib_list);
 }
-#endif /* HAVE_ANDROID_PLATFORM */
 
-_EGLDisplay*
-_eglGetDeviceDisplay(void *native_display,
-                     const EGLAttrib *attrib_list)
-{
-   _EGLDevice *dev;
-   _EGLDisplay *display;
-   int fd = -1;
-
-   dev = _eglLookupDevice(native_display);
-   if (!dev) {
-      _eglError(EGL_BAD_PARAMETER, "eglGetPlatformDisplay");
-      return NULL;
-   }
-
-   if (attrib_list) {
-      for (int i = 0; attrib_list[i] != EGL_NONE; i += 2) {
-         EGLAttrib attrib = attrib_list[i];
-         EGLAttrib value = attrib_list[i + 1];
-
-         /* EGL_EXT_platform_device does not recognize any attributes,
-          * EGL_EXT_device_drm adds the optional EGL_DRM_MASTER_FD_EXT.
-          */
-
-         if (!_eglDeviceSupports(dev, _EGL_DEVICE_DRM) ||
-             attrib != EGL_DRM_MASTER_FD_EXT) {
-            _eglError(EGL_BAD_ATTRIBUTE, "eglGetPlatformDisplay");
-            return NULL;
-         }
-
-         fd = (int) value;
-      }
-   }
-
-   display = _eglFindDisplay(_EGL_PLATFORM_DEVICE, native_display, attrib_list);
-   if (!display) {
-      _eglError(EGL_BAD_ALLOC, "eglGetPlatformDisplay");
-      return NULL;
-   }
-
-   /* If the fd is explicitly provided and we did not dup() it yet, do so.
-    * The spec mandates that we do so, since we'll need it past the
-    * eglGetPlatformDispay call.
-    *
-    * The new fd is guaranteed to be 3 or greater.
-    */
-   if (fd != -1 && display->Options.fd == 0) {
-	   /*
-      display->Options.fd = os_dupfd_cloexec(fd);
-	  */
-      if (display->Options.fd == -1) {
-         /* Do not (really) need to teardown the display */
-         _eglError(EGL_BAD_ALLOC, "eglGetPlatformDisplay");
-         return NULL;
-      }
-   }
-
-   return display;
-}
