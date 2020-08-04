@@ -75,6 +75,7 @@ static const struct {
    { _EGL_PLATFORM_SURFACELESS, "surfaceless" },
    { _EGL_PLATFORM_DEVICE, "device" },
    { _EGL_PLATFORM_VULKAN, "vulkan" },
+   { _EGL_PLATFORM_VULKAN_SURFACELESS, "vulkan surfaceless" },
 };
 
 
@@ -118,9 +119,11 @@ static _EGLPlatformType
 _eglNativePlatformDetectNativeDisplay(void *nativeDisplay)
 {
    if (nativeDisplay == EGL_DEFAULT_DISPLAY)
-      return _EGL_INVALID_PLATFORM;
+      // Support for rendering to window system via Vulkan WSI
+      return _EGL_PLATFORM_VULKAN;
 
-   return _EGL_PLATFORM_VULKAN;
+   // Only support for off-screen rendering to VkImage
+   return _EGL_PLATFORM_VULKAN_SURFACELESS;
 }
 
 

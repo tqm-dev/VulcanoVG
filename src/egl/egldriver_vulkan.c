@@ -43,6 +43,40 @@
 #include "egldriver.h"
 #include "egldisplay.h"
 
+
+static VkInstance _createVkInstanceInternal(void)
+{
+   VkApplicationInfo appInfo;
+   VkInstanceCreateInfo createInfo;
+   VkInstance vkInstance;
+   VkResult result;
+   
+   /* App info */
+   appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+   appInfo.pApplicationName = "VulkanVG";
+   appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+   appInfo.pEngineName = "No Engine";
+   appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+   appInfo.apiVersion = VK_API_VERSION_1_2;
+   
+   /* Instance create info */
+   createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+   createInfo.pNext = NULL;
+   createInfo.flags = 0;
+   createInfo.pApplicationInfo = &appInfo;
+   createInfo.enabledLayerCount = 0;
+   createInfo.ppEnabledLayerNames = NULL;
+   createInfo.enabledExtensionCount = 0;
+   createInfo.ppEnabledExtensionNames = NULL;
+   
+   /* Instance */
+   result = vkCreateInstance(&createInfo, NULL, &vkInstance);
+   if(result != VK_SUCCESS)
+      return NULL;
+
+   return vkInstance;
+}
+
 static EGLBoolean
 _Initialize(_EGLDriver *drv, _EGLDisplay *disp)
 {
@@ -50,10 +84,20 @@ _Initialize(_EGLDriver *drv, _EGLDisplay *disp)
 	VkInstance vkInstance;
 
 	switch (disp->Platform) {
-		case _EGL_PLATFORM_VULKAN:
+		case _EGL_PLATFORM_VULKAN_SURFACELESS:
+			// Vulkan instance was already set by the client
 			vkInstance = (VkInstance)disp->PlatformDisplay;
 			if(vkInstance)
 				ret = EGL_TRUE;
+			break;
+		case _EGL_PLATFORM_VULKAN:
+			// Vulkan instance needs to be created by this driver
+			vkInstance = (VkInstance)disp->PlatformDisplay;
+			vkInstance = _createVkInstanceInternal();
+			if(vkInstance){
+				disp->PlatformDisplay = (void*)vkInstance;
+				ret = EGL_TRUE;
+			}
 			break;
 		case _EGL_PLATFORM_SURFACELESS:
 		case _EGL_PLATFORM_DEVICE:

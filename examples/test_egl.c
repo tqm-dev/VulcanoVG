@@ -46,8 +46,11 @@ int main(int argc, char **argv)
 
 	vkInstance = _createVkInstance();
 	printf("_createVkInstance(): [%p] \r\n", vkInstance);
-
+#if 1
 	dpy = eglGetDisplay((EGLNativeDisplayType)vkInstance);
+#else
+	dpy = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+#endif
 	printf("eglGetDisplay(): [%p] \r\n", dpy);
 
 	ret = eglInitialize(dpy, &major, &minor);
