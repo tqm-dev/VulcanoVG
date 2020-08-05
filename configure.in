@@ -85,37 +85,15 @@ AC_CHECK_LIB([m],[cos])
 # ==============================================
 # Platform-specific directories and flags
 
-case "${host}" in
-*darwin*)
-	GL_DIR="OpenGL"
-	GLUT_DIR="GLUT"
-	GL_LIB="-framework OpenGL"
-	GLU_LIB=""
-	GLUT_LIB="-framework GLUT"
-	CONFIG_CFLAGS=""
-	CONFIG_LDFLAGS="-framework OpenGL -framework GLUT"
-	CONFIG_LDADD="" ;;
-*mingw* | *cygwin*)
-	GL_DIR="GL"
-	GLUT_DIR="GL"
-	GL_LIB="-lGL"
-	GLU_LIB="-lGLU"
-	GLUT_FLAGS="-lglut"
-	CONFIG_CFLAGS=""
-	CONFIG_LDFLAGS=""
-	CONFIG_LDADD="-lglut -lGL -lGLU" ;;
-*)
-	GL_DIR="GL"
-	GLUT_DIR="GL"
-	VULKAN_DIR="vulkan"
-	GL_LIB="-lGL"
-	GLU_LIB="-lGLU"
-	GLUT_LIB="-lglut"
-	CONFIG_CFLAGS=""
-	CONFIG_LDFLAGS=""
-	CONFIG_LDADD="-lglut -lGL -lGLU" ;;
-	
-esac
+GL_DIR="GL"
+GLUT_DIR="GL"
+VULKAN_DIR="vulkan"
+GL_LIB="-lGL"
+GLU_LIB="-lGLU"
+GLUT_LIB="-lglut"
+CONFIG_CFLAGS=""
+CONFIG_LDFLAGS=""
+CONFIG_LDADD="-lglut -lGL -lGLU"
 
 AC_SUBST([CONFIG_CFLAGS])
 AC_SUBST([CONFIG_LDFLAGS])
