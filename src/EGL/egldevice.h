@@ -34,6 +34,8 @@
 #include <stddef.h>
 #include "egltypedefs.h"
 
+#include <vulkan/vulkan.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -56,11 +58,24 @@ _eglLookupDevice(EGLDeviceEXT device)
 }
 
 _EGLDevice *
-_eglAddDevice(int fd, bool software);
+_eglAddDevice(void* device, bool software);
 
 enum _egl_device_extension {
    _EGL_DEVICE_SOFTWARE,
    _EGL_DEVICE_DRM,
+   _EGL_DEVICE_VULKAN_LOGICAL,
+};
+
+struct _egl_device {
+   _EGLDevice *Next;
+
+   const char *extensions;
+
+   EGLBoolean MESA_device_software;
+   EGLBoolean EXT_device_drm;
+   EGLBoolean EXT_device_vulkan_logical;
+
+   VkDevice device;
 };
 
 typedef enum _egl_device_extension _EGLDeviceExtension;

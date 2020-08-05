@@ -33,16 +33,6 @@
 #include "eglglobals.h"
 #include "egltypedefs.h"
 
-
-struct _egl_device {
-   _EGLDevice *Next;
-
-   const char *extensions;
-
-   EGLBoolean MESA_device_software;
-   EGLBoolean EXT_device_drm;
-};
-
 void
 _eglFiniDevice(void)
 {
@@ -61,7 +51,8 @@ _eglFiniDevice(void)
       /* pop list head */
       dev = dev_list;
       dev_list = dev_list->Next;
-
+//TODO: vulkan
+//    drmFreeDevice(&dev->device);
       free(dev);
    }
 
@@ -84,17 +75,63 @@ _eglCheckDeviceHandle(EGLDeviceEXT device)
    return (cur != NULL);
 }
 
+// This is a dummy device that is set by default
 _EGLDevice _eglSoftwareDevice = {
    .extensions = "EGL_MESA_device_software",
    .MESA_device_software = EGL_TRUE,
 };
+
+/*
+ * Negative value on error, zero if newly added, one if already in list.
+ */
+static int
+_eglAddNativeDevice(void* device, _EGLDevice **out_dev)
+{
+   _EGLDevice *dev;
+
+   dev = _eglGlobal.DeviceList;
+
+   /* The first device is always software */
+   assert(dev);
+   assert(_eglDeviceSupports(dev, _EGL_DEVICE_SOFTWARE));
+
+   while (dev->Next) {
+      dev = dev->Next;
+
+      assert(_eglDeviceSupports(dev, _EGL_DEVICE_VULKAN_LOGICAL));
+      if ((VkDevice)device != dev->device) {
+         if (out_dev)
+            *out_dev = dev;
+         return 1;
+      }
+   }
+
+   dev->Next = calloc(1, sizeof(_EGLDevice));
+   if (!dev->Next) {
+      if (out_dev)
+         *out_dev = NULL;
+      return -1;
+   }
+
+   dev = dev->Next;
+   dev->extensions = "EXT_device_vulkan_logical";
+   dev->EXT_device_vulkan_logical = EGL_TRUE;
+   dev->EXT_device_drm = EGL_FALSE;
+   dev->MESA_device_software = EGL_FALSE;
+   dev->device = device;
+
+   if (out_dev)
+      *out_dev = dev;
+
+   return 0;
+}
 
 /* Adds a device in DeviceList, if needed for the given fd.
  *
  * If a software device, the fd is ignored.
  */
 _EGLDevice *
-_eglAddDevice(int fd, bool software)
+_eglAddDevice(void* device, bool software)
 {
    _EGLDevice *dev;
 
@@ -107,8 +144,8 @@ _eglAddDevice(int fd, bool software)
    if (software)
       goto out;
 
-   _eglLog(_EGL_FATAL, "Driver bug: Built without libdrm, yet looking for HW device");
-   dev = NULL;
+   /* Device is not added - error or already present */
+   _eglAddNativeDevice(device, &dev);
 
 out:
    mtx_unlock(_eglGlobal.Mutex);
@@ -123,6 +160,8 @@ _eglDeviceSupports(_EGLDevice *dev, _EGLDeviceExtension ext)
       return dev->MESA_device_software;
    case _EGL_DEVICE_DRM:
       return dev->EXT_device_drm;
+   case _EGL_DEVICE_VULKAN_LOGICAL:
+      return dev->EXT_device_vulkan_logical;
    default:
       assert(0);
       return EGL_FALSE;
@@ -165,29 +204,6 @@ _eglQueryDeviceStringEXT(_EGLDevice *dev, EGLint name)
    };
 }
 
-/* Do a fresh lookup for devices.
- *
- * Walks through the DeviceList, discarding no longer available ones
- * and adding new ones as applicable.
- *
- * Must be called with the global lock held.
- */
-static int
-_eglRefreshDeviceList(void)
-{
-   ASSERTED _EGLDevice *dev;
-   int count = 0;
-
-   dev = _eglGlobal.DeviceList;
-
-   /* The first device is always software */
-   assert(dev);
-   assert(_eglDeviceSupports(dev, _EGL_DEVICE_SOFTWARE));
-   count++;
-
-   return count;
-}
-
 EGLBoolean
 _eglQueryDevicesEXT(EGLint max_devices,
                     _EGLDevice **devices,
@@ -201,7 +217,7 @@ _eglQueryDevicesEXT(EGLint max_devices,
 
    mtx_lock(_eglGlobal.Mutex);
 
-   num_devs = _eglRefreshDeviceList();
+//TODO   num_devs = _eglRefreshDeviceList();
    devs = _eglGlobal.DeviceList;
 
    /* bail early if we only care about the count */
