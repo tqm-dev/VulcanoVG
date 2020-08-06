@@ -74,7 +74,7 @@ struct _egl_device {
    EGLBoolean EXT_device_drm;
    EGLBoolean EXT_device_vulkan_logical;
 
-   VkLogicalDevice vk;
+   LogicalDevice vk;
 };
 
 typedef enum _egl_device_extension _EGLDeviceExtension;

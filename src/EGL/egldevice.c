@@ -88,9 +88,9 @@ static int
 _eglAddVulkanDevice(void* device, _EGLDevice **out_dev)
 {
    _EGLDevice *dev;
-   VkLogicalDevice *vk = (VkLogicalDevice*)device;
+   LogicalDevice *logicalDevice = (LogicalDevice*)device;
 
-   assert(vk);
+   assert(logicalDevice);
    dev = _eglGlobal.DeviceList;
 
    /* The first device is always software */
@@ -101,7 +101,7 @@ _eglAddVulkanDevice(void* device, _EGLDevice **out_dev)
       dev = dev->Next;
 
       assert(_eglDeviceSupports(dev, _EGL_DEVICE_VULKAN_LOGICAL));
-      if (vk->device != dev->vk.device) {
+      if (logicalDevice->device != dev->vk.device) {
          if (out_dev)
             *out_dev = dev;
          return 1;
@@ -120,7 +120,7 @@ _eglAddVulkanDevice(void* device, _EGLDevice **out_dev)
    dev->EXT_device_vulkan_logical = EGL_TRUE;
    dev->EXT_device_drm = EGL_FALSE;
    dev->MESA_device_software = EGL_FALSE;
-   dev->vk = *vk;
+   dev->vk = *logicalDevice;
 
    if (out_dev)
       *out_dev = dev;

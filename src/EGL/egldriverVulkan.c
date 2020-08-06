@@ -46,8 +46,9 @@
 
 
 static VkInstance
-_getInstance(_EGLDisplay *disp)
-{
+_getInstance(
+   _EGLDisplay *disp // in/out
+){
    if(disp->Platform == _EGL_PLATFORM_VULKAN_SURFACELESS) {
 
       // Vulkan instance was already set by the client
@@ -93,43 +94,223 @@ _getInstance(_EGLDisplay *disp)
    }
 }
 
+#define MAX_QUEUE_FAMILY 10
 static void
-_enumeratePhysicalDevices(VkInstance instance, VkPhysicalDevice* pPhyDevs, uint32_t* pCount)
-{
-   // Performance_query to get the number of the GPUs.
-   // If it does not work on your GPUs, 
-   // execute below command: (for intel GPUs)
+_enumeratePhysicalDevices(
+   VkInstance      vk,   // in
+   PhysicalDevice* devs, // out
+   uint32_t*       count // out
+){
+   // If Performance_query does not work on your GPUs, 
+   // execute below command (for intel GPUs):
    // $ sudo sysctl -w dev.i915.perf_stream_paranoid=0
-   vkEnumeratePhysicalDevices(instance, pCount, NULL);
-   vkEnumeratePhysicalDevices(instance, pCount, pPhyDevs);
+   vkEnumeratePhysicalDevices(vk, count, NULL);
+
+   VkPhysicalDevice phy_devs[*count];
+   vkEnumeratePhysicalDevices(vk, count, phy_devs);
+
+   for (uint32_t i = 0; i < *count; ++i)
+   {
+      uint32_t qfc = 0;
+      devs[i].physical_device = phy_devs[i];
+      
+      vkGetPhysicalDeviceProperties(devs[i].physical_device, &devs[i].properties);
+      vkGetPhysicalDeviceFeatures(devs[i].physical_device, &devs[i].features);
+      vkGetPhysicalDeviceMemoryProperties(devs[i].physical_device, &devs[i].memories);
+      
+      devs[i].queue_family_count = MAX_QUEUE_FAMILY;
+      vkGetPhysicalDeviceQueueFamilyProperties(devs[i].physical_device, &qfc, NULL);
+      vkGetPhysicalDeviceQueueFamilyProperties(devs[i].physical_device, &devs[i].queue_family_count, devs[i].queue_families);
+      
+      devs[i].queue_families_incomplete = devs[i].queue_family_count < qfc;
+   }
+}
+
+static int _createLogicalDevice(
+   PhysicalDevice*         phy_dev,
+   LogicalDevice*          dev,
+   VkQueueFlags            qflags,
+   VkDeviceQueueCreateInfo queue_info[],
+   uint32_t*               queue_info_count,
+   const char *            ext_names[],
+   uint32_t                ext_count
+){
+   int retval = 0;
+   VkResult res;
+   
+   /* Here is to hoping we don't have to redo this function again ;) */
+   *dev = (LogicalDevice){0};
+   
+   /* We have already seen how to create a logical device and request queues in Tutorial 2 and again in 5 */
+   uint32_t max_queue_count = *queue_info_count;
+   *queue_info_count = 0;
+   
+   uint32_t max_family_queues = 0;
+   for (uint32_t i = 0; i < phy_dev->queue_family_count; ++i)
+      if (max_family_queues < phy_dev->queue_families[i].queueCount)
+         max_family_queues = phy_dev->queue_families[i].queueCount;
+
+   float queue_priorities[max_family_queues];
+   memset(queue_priorities, 0, sizeof queue_priorities);
+   
+   for (uint32_t i = 0; i < phy_dev->queue_family_count && i < max_queue_count; ++i)
+   {
+      VkDeviceQueueCreateInfo info = {0};
+
+      /* Check if the queue has the desired capabilities.  If so, add it to the list of desired queues */
+      if ((phy_dev->queue_families[i].queueFlags & qflags) == 0)
+         continue;
+      
+      info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+      info.queueFamilyIndex = i;
+      info.queueCount = phy_dev->queue_families[i].queueCount;
+      info.pQueuePriorities = queue_priorities;
+      queue_info[(*queue_info_count)++] = info;
+   }
+   
+   /* If there are no compatible queues, there is little one can do here */
+   if (*queue_info_count == 0)
+   {
+      retval = -1;
+      goto exit_failed;
+   }
+   
+   VkDeviceCreateInfo dev_info = {0};
+   dev_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+   dev_info.queueCreateInfoCount = *queue_info_count;
+   dev_info.pQueueCreateInfos = queue_info;
+   dev_info.enabledExtensionCount = ext_count;
+   dev_info.ppEnabledExtensionNames = ext_names;
+   dev_info.pEnabledFeatures = &phy_dev->features;
+   
+   vkCreateDevice(phy_dev->physical_device, &dev_info, NULL, &dev->device);
+   
+exit_failed:
+   return retval;
+
+}
+
+int 
+_createCommandBuffers(
+   PhysicalDevice *        phy_dev,
+   LogicalDevice *         dev,
+   VkDeviceQueueCreateInfo queue_info[],
+   uint32_t                queue_info_count
+){
+   int retval = 0;
+   VkResult res;
+   
+   dev->command_pools = malloc(queue_info_count * sizeof *dev->command_pools);
+   if (dev->command_pools == NULL)
+   {
+      retval = -1;
+      goto exit_failed;
+   }
+   
+   for (uint32_t i = 0; i < queue_info_count; ++i)
+   {
+      CommandPool *cmd = &dev->command_pools[i];
+      *cmd = (CommandPool){0};
+      
+      cmd->qflags = phy_dev->queue_families[queue_info[i].queueFamilyIndex].queueFlags;
+      
+      VkCommandPoolCreateInfo pool_info = {0};
+      pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+      pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+      pool_info.queueFamilyIndex = queue_info[i].queueFamilyIndex;
+      
+      res = vkCreateCommandPool(dev->device, &pool_info, NULL, &cmd->pool);
+      if (res < 0){
+          retval = -1;
+         goto exit_failed;
+      }
+      ++dev->command_pool_count;
+      
+      cmd->queues = malloc(queue_info[i].queueCount * sizeof *cmd->queues);
+      cmd->buffers = malloc(queue_info[i].queueCount * sizeof *cmd->buffers);
+      if (cmd->queues == NULL || cmd->buffers == NULL)
+      {
+          retval = -1;
+         goto exit_failed;
+      }
+      
+      for (uint32_t j = 0; j < queue_info[i].queueCount; ++j)
+         vkGetDeviceQueue(dev->device, queue_info[i].queueFamilyIndex, j, &cmd->queues[j]);
+
+      cmd->queue_count = queue_info[i].queueCount;
+      
+      VkCommandBufferAllocateInfo buffer_info = {0};
+      buffer_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+      buffer_info.commandPool = cmd->pool;
+      buffer_info.commandBufferCount = queue_info[i].queueCount;
+      
+      res = vkAllocateCommandBuffers(dev->device, &buffer_info, cmd->buffers);
+      if (res){
+          retval = -1;
+         goto exit_failed;
+      }
+      
+      cmd->buffer_count = queue_info[i].queueCount;
+   }
+
+exit_failed:
+   return retval;
 }
 
 static void
-_createLogicalDevices(VkInstance instance, VkPhysicalDevice* phyDevList, uint32_t count, _EGLDisplay *disp)
-{
-   _EGLDevice *deviceList = NULL;
-   VkLogicalDevice vk = {0};
+_createLogicalDevices(
+   PhysicalDevice* phyDevList, // in
+   LogicalDevice*  logDevList, // out
+   uint32_t        count       // in
+){
+   const char *extension_names[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+   int res;
 
+   for (uint32_t i = 0; i < count; ++i) {
+
+      PhysicalDevice *phy_dev = &phyDevList[i];
+      LogicalDevice  *dev = &logDevList[i];
+      VkDeviceQueueCreateInfo queue_info[phy_dev->queue_family_count];
+      uint32_t queue_info_count = phy_dev->queue_family_count;
+
+      // Create VkDevice
+      res = _createLogicalDevice(phy_dev, dev, VK_QUEUE_GRAPHICS_BIT, queue_info,
+              &queue_info_count, extension_names, sizeof extension_names / sizeof *extension_names);
+
+      // Setup command buffers
+      if(res == 0)
+         _createCommandBuffers(phy_dev, dev, queue_info, queue_info_count);
+   }
+}
+   
+static void
+_addLogicalDevices(
+   LogicalDevice* logDevList, // in
+   uint32_t       count,      // in
+   _EGLDisplay*   disp        // out
+){
+   _EGLDevice *top = NULL;
+
+   // Add _EGLDevice containing the LogicalDevice to the list in _eglGlobal.
    for(uint32_t i = 0; i < count; i++){
-      
-      // TODO: Create VkDevice from phyDevList.
-      vk.device = NULL;
-
-      // _eglAddDevice will create and add _EGLDevice to the list in _eglGlobal.
-      deviceList = _eglAddDevice((void*)&vk, false); // Always returns a top of the list of _EGLDevice.
-      if (!deviceList)
+      top = _eglAddDevice((void*)&logDevList[i], false); // Always returns a top of the list of _EGLDevice.
+      if (!top)
          break;
    }
 
-   disp->Device = deviceList;
+   // Make _EGLDisplay can access to the list of _EGLDevice
+   disp->Device = top;
 }
-   
+ 
 #define VULKAN_DEVICE_MAX   8
 static EGLBoolean
-_Initialize(_EGLDriver *drv, _EGLDisplay *disp)
-{
+_Initialize(
+   _EGLDriver *drv,
+   _EGLDisplay *disp
+){
    VkInstance vkInstance;
-   VkPhysicalDevice phyDevList[VULKAN_DEVICE_MAX] = {0};
+   PhysicalDevice phyDevList[VULKAN_DEVICE_MAX] = {0};
+   LogicalDevice  logDevList[VULKAN_DEVICE_MAX] = {0};
    uint32_t countDev;
   
    /* Get instance */
@@ -143,7 +324,10 @@ _Initialize(_EGLDriver *drv, _EGLDisplay *disp)
       return EGL_FALSE;
 
    /* Create logical devices */
-   _createLogicalDevices(vkInstance, phyDevList, countDev, disp);
+   _createLogicalDevices(phyDevList, logDevList, countDev);
+
+   /* Create logical devices */
+  _addLogicalDevices(logDevList, countDev, disp);
 
    return EGL_TRUE;
 }
