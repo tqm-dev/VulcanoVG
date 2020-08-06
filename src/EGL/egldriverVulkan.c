@@ -131,7 +131,7 @@ static int _createLogicalDevice(
    LogicalDevice*          dev,
    VkQueueFlags            qflags,
    VkDeviceQueueCreateInfo queue_info[],
-   uint32_t*               queue_info_count,
+   uint32_t*               queue_info_count, // in/out  This will be edited by checking qflags
    const char *            ext_names[],
    uint32_t                ext_count
 ){
@@ -273,13 +273,16 @@ _createLogicalDevices(
       VkDeviceQueueCreateInfo queue_info[phy_dev->queue_family_count];
       uint32_t queue_info_count = phy_dev->queue_family_count;
 
-      // Create VkDevice
+      // Create VkDevice for graphics processing
       res = _createLogicalDevice(phy_dev, dev, VK_QUEUE_GRAPHICS_BIT, queue_info,
-              &queue_info_count, extension_names, sizeof extension_names / sizeof *extension_names);
+              &queue_info_count, // Containing all of queue family
+              extension_names, sizeof extension_names / sizeof *extension_names);
 
       // Setup command buffers
       if(res == 0)
-         _createCommandBuffers(phy_dev, dev, queue_info, queue_info_count);
+         _createCommandBuffers(phy_dev, dev, queue_info,
+            queue_info_count // Containing only a graphics queue family because of only VK_QUEUE_GRAPHICS_BIT enabled.
+         );
    }
 }
    
