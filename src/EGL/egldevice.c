@@ -52,7 +52,7 @@ _eglFiniDevice(void)
       dev = dev_list;
       dev_list = dev_list->Next;
 //TODO: vulkan
-//    drmFreeDevice(&dev->device);
+//    drmFreeDevice(&dev->vk);
       free(dev);
    }
 
@@ -85,10 +85,12 @@ _EGLDevice _eglSoftwareDevice = {
  * Negative value on error, zero if newly added, one if already in list.
  */
 static int
-_eglAddNativeDevice(void* device, _EGLDevice **out_dev)
+_eglAddVulkanDevice(void* device, _EGLDevice **out_dev)
 {
    _EGLDevice *dev;
+   VkLogicalDevice *vk = (VkLogicalDevice*)device;
 
+   assert(vk);
    dev = _eglGlobal.DeviceList;
 
    /* The first device is always software */
@@ -99,7 +101,7 @@ _eglAddNativeDevice(void* device, _EGLDevice **out_dev)
       dev = dev->Next;
 
       assert(_eglDeviceSupports(dev, _EGL_DEVICE_VULKAN_LOGICAL));
-      if ((VkDevice)device != dev->device) {
+      if (vk->device != dev->vk.device) {
          if (out_dev)
             *out_dev = dev;
          return 1;
@@ -118,7 +120,7 @@ _eglAddNativeDevice(void* device, _EGLDevice **out_dev)
    dev->EXT_device_vulkan_logical = EGL_TRUE;
    dev->EXT_device_drm = EGL_FALSE;
    dev->MESA_device_software = EGL_FALSE;
-   dev->device = device;
+   dev->vk = *vk;
 
    if (out_dev)
       *out_dev = dev;
@@ -145,7 +147,7 @@ _eglAddDevice(void* device, bool software)
       goto out;
 
    /* Device is not added - error or already present */
-   _eglAddNativeDevice(device, &dev);
+   _eglAddVulkanDevice(device, &dev);
 
 out:
    mtx_unlock(_eglGlobal.Mutex);

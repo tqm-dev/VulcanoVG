@@ -108,15 +108,15 @@ static void
 _createLogicalDevices(VkInstance instance, VkPhysicalDevice* phyDevList, uint32_t count, _EGLDisplay *disp)
 {
    _EGLDevice *deviceList = NULL;
-    VkDevice device = NULL;
+   VkLogicalDevice vk = {0};
 
    for(uint32_t i = 0; i < count; i++){
       
       // TODO: Create VkDevice from phyDevList.
-      device = NULL;
+      vk.device = NULL;
 
       // _eglAddDevice will create and add _EGLDevice to the list in _eglGlobal.
-      deviceList = _eglAddDevice((void*)device, false); // Always returns a top of the list of _EGLDevice.
+      deviceList = _eglAddDevice((void*)&vk, false); // Always returns a top of the list of _EGLDevice.
       if (!deviceList)
          break;
    }
