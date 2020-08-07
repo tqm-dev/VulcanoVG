@@ -16,6 +16,8 @@ int main(int argc, char **argv)
 	EGLBoolean ret;
 	EGLint major, minor;
 
+    testInit(argc, argv, 600,600, "VulkanVG: Dummy");
+
 #if SURFACELESS_PLATFORM
 	VkInstance vkInstance = _createVkInstance();
 	printf("_createVkInstance(): [%p] \r\n",  vkInstance);
