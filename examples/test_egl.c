@@ -2,40 +2,12 @@
 #include <assert.h>
 #include <vulkan/vulkan.h>
 
-static VkInstance _createVkInstance(void)
-{
-	VkApplicationInfo appInfo;
-	VkInstanceCreateInfo createInfo;
-	VkInstance vkInstance;
-	VkResult result;
-
-	/* App info */
-	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	appInfo.pApplicationName = "VulkanVG";
-	appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-	appInfo.pEngineName = "No Engine";
-	appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-	appInfo.apiVersion = VK_API_VERSION_1_2;
-
-	/* Instance create info */
-	createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-	createInfo.pNext = NULL;
-	createInfo.flags = 0;
-	createInfo.pApplicationInfo = &appInfo;
-	createInfo.enabledLayerCount = 0;
-	createInfo.ppEnabledLayerNames = NULL;
-	createInfo.enabledExtensionCount = 0;
-	createInfo.ppEnabledExtensionNames = NULL;
-
-	/* Instance */
-	result = vkCreateInstance(&createInfo, NULL, &vkInstance);
-	if(result != VK_SUCCESS)
-		return NULL;
-
-	return vkInstance;
-}
-
 #define SURFACELESS_PLATFORM 1
+
+#if SURFACELESS_PLATFORM == 1
+static VkInstance _createVkInstance(void);
+#endif
+
 int main(int argc, char **argv)
 {
 	EGLDisplay dpy;
@@ -43,11 +15,10 @@ int main(int argc, char **argv)
 	EGLContext ctx;
 	EGLBoolean ret;
 	EGLint major, minor;
-	VkInstance vkInstance;
 
-	vkInstance = _createVkInstance();
-	printf("_createVkInstance(): [%p] \r\n", vkInstance);
 #if SURFACELESS_PLATFORM
+	VkInstance vkInstance = _createVkInstance();
+	printf("_createVkInstance(): [%p] \r\n",  vkInstance);
 	dpy = eglGetDisplay((EGLNativeDisplayType)vkInstance);
 #else
 	dpy = eglGetDisplay(EGL_DEFAULT_DISPLAY);
@@ -87,3 +58,37 @@ int main(int argc, char **argv)
 
 	return EXIT_SUCCESS;
 }
+
+static VkInstance _createVkInstance(void)
+{
+	VkApplicationInfo appInfo;
+	VkInstanceCreateInfo createInfo;
+	VkInstance vkInstance;
+	VkResult result;
+
+	/* App info */
+	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+	appInfo.pApplicationName = "VulkanVG";
+	appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+	appInfo.pEngineName = "No Engine";
+	appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+	appInfo.apiVersion = VK_API_VERSION_1_2;
+
+	/* Instance create info */
+	createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	createInfo.pNext = NULL;
+	createInfo.flags = 0;
+	createInfo.pApplicationInfo = &appInfo;
+	createInfo.enabledLayerCount = 0;
+	createInfo.ppEnabledLayerNames = NULL;
+	createInfo.enabledExtensionCount = 0;
+	createInfo.ppEnabledExtensionNames = NULL;
+
+	/* Instance */
+	result = vkCreateInstance(&createInfo, NULL, &vkInstance);
+	if(result != VK_SUCCESS)
+		return NULL;
+
+	return vkInstance;
+}
+
