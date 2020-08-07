@@ -23,6 +23,7 @@
 #include <VG/openvg.h>
 #include <VG/vgu.h>
 #include <EGL/egl.h>
+#include <EGL/eglext.h>
 
 typedef enum {
     TEST_CALLBACK_DISPLAY      = 0,

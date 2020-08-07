@@ -35,6 +35,7 @@ static VkInstance _createVkInstance(void)
 	return vkInstance;
 }
 
+#define SURFACELESS_PLATFORM 1
 int main(int argc, char **argv)
 {
 	EGLDisplay dpy;
@@ -46,7 +47,7 @@ int main(int argc, char **argv)
 
 	vkInstance = _createVkInstance();
 	printf("_createVkInstance(): [%p] \r\n", vkInstance);
-#if 1
+#if SURFACELESS_PLATFORM
 	dpy = eglGetDisplay((EGLNativeDisplayType)vkInstance);
 #else
 	dpy = eglGetDisplay(EGL_DEFAULT_DISPLAY);
@@ -59,12 +60,16 @@ int main(int argc, char **argv)
 	{
 		EGLint num_config;
 		EGLint attrib_list[3] = {
-			EGL_CONFIG_ID, 0xff,
+#if SURFACELESS_PLATFORM
+			EGL_CONFIG_ID, EGL_CONFIG_ID_VULKAN_VG_SURFACELESS,
+#else
+			EGL_CONFIG_ID, EGL_CONFIG_ID_VULKAN_VG,
+#endif
 			EGL_NONE
 		};
 		ret = eglChooseConfig(dpy, attrib_list, &config, 1, &num_config);
 		printf("eglChooseConfig(): [%d] \r\n", ret);
-		assert((uintptr_t)config == 0xff);
+		printf("config: [%lu] \r\n", (uintptr_t)config);
 		assert(num_config == 1);
 	}
 

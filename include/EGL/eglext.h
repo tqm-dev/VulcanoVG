@@ -886,11 +886,13 @@ EGLAPI EGLSurface EGLAPIENTRY eglCreatePlatformPixmapSurfaceEXT (EGLDisplay dpy,
 #ifndef EGL_platform_vulkan
 #define EGL_platform_vulkan 1
 #define EGL_PLATFORM_VULKAN                 0x32DD
+#define EGL_CONFIG_ID_VULKAN_VG             0xf0
 #endif /* EGL_platform_vulkan */
 
 #ifndef EGL_platform_vulkan_surfaceless
 #define EGL_platform_vulkan_surfaceless 1
 #define EGL_PLATFORM_VULKAN_SURFACELESS     0x32D1
+#define EGL_CONFIG_ID_VULKAN_VG_SURFACELESS 0xf1
 #endif /* EGL_platform_vulkan_surfaceless */
 
 #ifndef EGL_EXT_protected_content

@@ -43,6 +43,7 @@
 #include "egldriver.h"
 #include "egldisplay.h"
 #include "egldevice.h"
+#include "eglconfig.h"
 
 
 static VkInstance
@@ -305,6 +306,28 @@ _addLogicalDevices(
    disp->Device = top;
 }
  
+static _EGLConfig _baseConfig = {0};
+static void
+_setupDefaultConfigs(_EGLDisplay* disp
+){
+   EGLint configId;
+
+   switch(disp->Platform) {
+      case _EGL_PLATFORM_VULKAN:
+         configId = EGL_CONFIG_ID_VULKAN_VG;
+         break;
+      case _EGL_PLATFORM_VULKAN_SURFACELESS:
+         configId = EGL_CONFIG_ID_VULKAN_VG_SURFACELESS;
+         break;
+      default:
+         assert(0);
+         return;
+   }
+
+   _eglInitConfig(&_baseConfig, disp, configId);
+   _eglLinkConfig(&_baseConfig);
+}
+
 #define VULKAN_DEVICE_MAX   8
 static EGLBoolean
 _Initialize(
@@ -329,8 +352,11 @@ _Initialize(
    /* Create logical devices */
    _createLogicalDevices(phyDevList, logDevList, countDev);
 
-   /* Create logical devices */
+   /* Add logical devices to _EGLDevice*/
   _addLogicalDevices(logDevList, countDev, disp);
+
+   /* Setup egl configs */
+  _setupDefaultConfigs(disp);
 
    return EGL_TRUE;
 }

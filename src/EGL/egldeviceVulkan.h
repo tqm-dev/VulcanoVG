@@ -46,7 +46,6 @@ typedef struct
    VkPhysicalDeviceProperties       properties;
    VkPhysicalDeviceFeatures         features;
    VkPhysicalDeviceMemoryProperties memories;
-   
    VkQueueFamilyProperties          queue_families[MAX_QUEUE_FAMILY];
    uint32_t                         queue_family_count;
    bool                             queue_families_incomplete;
@@ -55,7 +54,6 @@ typedef struct
 typedef struct
 {
    VkCommandPool    pool;
-
    VkQueueFlags     qflags;
    VkQueue*         queues;
    uint32_t         queue_count;
@@ -64,11 +62,9 @@ typedef struct
 } CommandPool;
 
 typedef struct {
-
    VkDevice         device;
    CommandPool*     command_pools;
    uint32_t         command_pool_count;
-
 } LogicalDevice;
 
 #ifdef __cplusplus
