@@ -28,6 +28,7 @@ libOpenVG_la_SOURCES =\
 VG_includedir = $(includedir)/VG
 VG_include_HEADERS =\
 	$(top_builddir)/include/VG/openvg.h\
+	$(top_builddir)/include/VG/vulkanvg.h\
 	$(top_builddir)/include/VG/vgu.h
 
 lib_LTLIBRARIES += libEGL.la

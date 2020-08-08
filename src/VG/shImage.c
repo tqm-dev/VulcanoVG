@@ -20,6 +20,7 @@
 
 #define VG_API_EXPORT
 #include <VG/openvg.h>
+#include <VG/vulkanvg.h>
 #include "shImage.h"
 #include "shContext.h"
 #include <string.h>
@@ -617,6 +618,16 @@ VG_API_CALL VGImage vgCreateImage(VGImageFormat format,
   shImageArrayPushBack(&context->images, i);
   
   VG_RETURN((VGImage)i);
+}
+
+VG_API_CALL VGImage vgCreateImageFromVkImageEXT(
+   VGImageFormat format,
+   VGint width,
+   VGint height,
+   VGbitfield allowedQuality,
+   VkImage vkImage
+){
+   return VG_INVALID_HANDLE;
 }
 
 VG_API_CALL void vgDestroyImage(VGImage image)

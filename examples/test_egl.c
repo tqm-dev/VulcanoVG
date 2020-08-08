@@ -1,6 +1,9 @@
 #include "test.h"
 #include <assert.h>
+
 #include <vulkan/vulkan.h>
+#include <VG/openvg.h>
+#include <VG/vulkanvg.h>
 
 #define SURFACELESS_PLATFORM 1
 
@@ -8,6 +11,8 @@
 static VkInstance _createVkInstance(void);
 #endif
 
+#define SURF_WIDTH		100
+#define SURF_HEIGHT		100
 int main(int argc, char **argv)
 {
 	EGLDisplay dpy;
@@ -17,6 +22,7 @@ int main(int argc, char **argv)
 	EGLint major, minor;
 	EGLSurface surf;
 	VGImage image;
+	VkImage vkImage;
 
     testInit(argc, argv, 600,600, "VulkanVG: Dummy");
 
@@ -54,9 +60,23 @@ int main(int argc, char **argv)
 	ctx = eglCreateContext(dpy, config, EGL_NO_CONTEXT, NULL);
 	printf("eglCreateContext(): [%p] \r\n", ctx);
 
-    image = NULL;
+    image = vgCreateImageFromVkImageEXT(VG_sRGBA_8888, SURF_WIDTH, SURF_HEIGHT, VG_IMAGE_QUALITY_BETTER, vkImage);
+	printf("vgCreateImageFromVkImageEXT(): [%p] \r\n", image);
+
 	surf = eglCreatePbufferFromClientBuffer(dpy, EGL_OPENVG_IMAGE, (EGLClientBuffer)image, config, NULL);
 	printf("eglCreatePbufferFromClientBuffer(): [%p] \r\n", surf);
+
+	ret = eglMakeCurrent(dpy, surf, surf, ctx);
+	printf("eglMakeCurrent(): [%d] \r\n", ret);
+
+	// Draw something by OpenVG
+	{
+		vgClear(0, 0, SURF_WIDTH, SURF_HEIGHT);
+        vgFinish();
+	}
+
+	ret = eglWaitClient();
+	printf("eglDestroyContext(): [%d] \r\n", ret);
 
 	ret = eglDestroyContext(dpy, ctx);
 	printf("eglDestroyContext(): [%d] \r\n", ret);
