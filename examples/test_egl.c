@@ -15,6 +15,8 @@ int main(int argc, char **argv)
 	EGLContext ctx;
 	EGLBoolean ret;
 	EGLint major, minor;
+	EGLSurface surf;
+	VGImage image;
 
     testInit(argc, argv, 600,600, "VulkanVG: Dummy");
 
@@ -51,6 +53,10 @@ int main(int argc, char **argv)
 
 	ctx = eglCreateContext(dpy, config, EGL_NO_CONTEXT, NULL);
 	printf("eglCreateContext(): [%p] \r\n", ctx);
+
+    image = NULL;
+	surf = eglCreatePbufferFromClientBuffer(dpy, EGL_OPENVG_IMAGE, (EGLClientBuffer)image, config, NULL);
+	printf("eglCreatePbufferFromClientBuffer(): [%p] \r\n", surf);
 
 	ret = eglDestroyContext(dpy, ctx);
 	printf("eglDestroyContext(): [%d] \r\n", ret);

@@ -1506,8 +1506,7 @@ eglCreatePbufferFromClientBuffer(EGLDisplay dpy, EGLenum buftype,
 
    _EGL_CHECK_CONFIG(disp, conf, EGL_NO_SURFACE, drv);
 
-   /* OpenVG is not supported */
-   RETURN_EGL_ERROR(disp, EGL_BAD_ALLOC, EGL_NO_SURFACE);
+   return (EGLSurface)drv->CreatePbufferFromClientBuffer(drv, disp, buftype, buffer, conf, attrib_list);
 }
 
 

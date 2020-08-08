@@ -113,6 +113,11 @@ struct _egl_driver
    _EGLSurface *(*CreatePbufferSurface)(_EGLDriver *drv, _EGLDisplay *disp,
                                         _EGLConfig *config,
                                         const EGLint *attrib_list);
+   _EGLSurface *(*CreatePbufferFromClientBuffer)(_EGLDriver *drv, _EGLDisplay *disp,
+                                        EGLenum buftype,
+                                        EGLClientBuffer buffer,
+                                        _EGLConfig *config,
+                                        const EGLint *attrib_list);
    EGLBoolean (*DestroySurface)(_EGLDriver *drv, _EGLDisplay *disp,
                                 _EGLSurface *surface);
    EGLBoolean (*QuerySurface)(_EGLDriver *drv, _EGLDisplay *disp,

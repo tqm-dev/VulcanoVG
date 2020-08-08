@@ -33,8 +33,7 @@ VG_include_HEADERS =\
 lib_LTLIBRARIES += libEGL.la
 libEGL_la_CFLAGS = \
 	-pedantic -I$(top_builddir)/include \
-	-pedantic -I$(top_builddir)/src/VG \
-	-pedantic -I$(top_builddir)/src/util
+	-pedantic -I$(top_builddir)/src/VG
 libEGL_la_SOURCES =\
 	EGL/eglapi.c\
 	EGL/eglarray.c\

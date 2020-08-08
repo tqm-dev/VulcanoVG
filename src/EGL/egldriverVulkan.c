@@ -46,6 +46,7 @@
 #include "egldevice.h"
 #include "eglconfig.h"
 #include "eglcontext.h"
+#include "eglsurface.h"
 
 #include <VG/openvg.h>
 #include "shContext.h"
@@ -449,20 +450,123 @@ _CreateContext(_EGLDriver *drv, _EGLDisplay *disp, _EGLConfig *conf,
                     _EGLContext *share_list, const EGLint *attrib_list)
 {
 
-   VuContext* vg_ctx = malloc(sizeof(VuContext));
-   if (!vg_ctx) {
+   VuContext* vuCtx = malloc(sizeof(VuContext));
+   if (!vuCtx) {
       return NULL;
    }
 
-   if (!_eglInitContext(&vg_ctx->base, disp, conf, attrib_list))
+   if (!_eglInitContext(&vuCtx->base, disp, conf, attrib_list))
       goto cleanup;
 
-   if(!_initVGContext(&vg_ctx->vg))
+   if(!_initVGContext(&vuCtx->vg))
       goto cleanup;
+
+   return &vuCtx->base;
 
 cleanup:
-   free(vg_ctx);
+   free(vuCtx);
    return NULL;
+}
+
+
+static _EGLDevice* _getPrimaryDevice(_EGLDisplay* disp)
+{
+   _EGLDevice* eglDev = disp->Device;
+   while(eglDev){
+      if(_eglDeviceSupports(eglDev,_EGL_DEVICE_VULKAN_LOGICAL))
+         return eglDev;
+      eglDev = eglDev->Next;
+   }
+
+   return NULL;
+}
+
+
+typedef struct {
+   _EGLSurface   base;
+   VkFramebuffer fb;
+} VuSurface;
+
+_EGLSurface* createPbufferFromClientBuffer(
+   _EGLDriver *drv,
+   _EGLDisplay *disp,
+   EGLenum buftype,
+   EGLClientBuffer buffer,
+   _EGLConfig *config,
+   const EGLint *attrib_list
+){
+   VuSurface* vuSurf = malloc(sizeof(VuSurface));
+
+   if(buftype != EGL_OPENVG_IMAGE);
+      goto cleanup;
+
+   if(!buffer || !((SHImage*)buffer)->vkImageView)
+      goto cleanup;
+
+   if(!_eglInitSurface(&vuSurf->base, disp, EGL_PBUFFER_BIT, config, attrib_list, NULL))
+      goto cleanup;
+
+   _EGLDevice* dev = _getPrimaryDevice(disp);
+
+   if(dev == NULL || dev->vk.device == NULL)
+      goto cleanup;
+
+   // Create render pass
+   VkRenderPass renderPass;
+   {
+      VkAttachmentDescription attachmentDesc[1];
+      attachmentDesc[0].format = VK_FORMAT_R8G8B8A8_SRGB;
+      attachmentDesc[0].samples = VK_SAMPLE_COUNT_1_BIT;
+      attachmentDesc[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+      attachmentDesc[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+      attachmentDesc[0].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+      attachmentDesc[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+      VkAttachmentReference attachmentRefs[1];
+      attachmentRefs[0].attachment = 0; /* corresponds to the index in pAttachments of VkRenderPassCreateInfo */
+      attachmentRefs[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+      VkSubpassDescription subpassDescs[1];
+      subpassDescs[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+      subpassDescs[0].colorAttachmentCount = 1;
+      subpassDescs[0].pColorAttachments = &attachmentRefs[0];
+      subpassDescs[0].pDepthStencilAttachment = NULL;
+
+      VkRenderPassCreateInfo rpInfo;
+      rpInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+      rpInfo.attachmentCount = 1;
+      rpInfo.pAttachments = attachmentDesc;
+      rpInfo.subpassCount = 1;
+      rpInfo.pSubpasses = subpassDescs;
+
+      vkCreateRenderPass(dev->vk.device, &rpInfo, NULL, &renderPass);
+   }
+
+   // Create frame buffer
+   {
+      VkImageView fbAttachments[1];
+      SHImage* image = (SHImage*)buffer;
+      fbAttachments[0] = image->vkImageView;
+
+      VkFramebufferCreateInfo fbInfo = {0};
+      fbInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+      fbInfo.pNext = NULL;
+      fbInfo.flags = 0;
+      fbInfo.renderPass = renderPass;
+      fbInfo.attachmentCount = 1;
+      fbInfo.pAttachments = fbAttachments;
+      fbInfo.width = image->width;
+      fbInfo.height = image->height;
+      fbInfo.layers = 1;
+      if(vkCreateFramebuffer(dev->vk.device, &fbInfo, NULL, &vuSurf->fb) != VK_SUCCESS)
+         goto cleanup;
+   }
+
+   return &vuSurf->base;
+
+cleanup:
+   free(vuSurf);
+   return EGL_NO_SURFACE;
 }
 
 _EGLDriver _eglDriver = {
@@ -474,6 +578,7 @@ _EGLDriver _eglDriver = {
    .CreateWindowSurface				= NULL,
    .CreatePixmapSurface				= NULL,
    .CreatePbufferSurface			= NULL,
+   .CreatePbufferFromClientBuffer	= createPbufferFromClientBuffer,
    .DestroySurface					= NULL,
    .GetProcAddress					= NULL,
    .WaitClient						= NULL,

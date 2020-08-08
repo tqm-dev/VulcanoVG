@@ -82,6 +82,7 @@ typedef struct
   SHfloat texwidthK;
   SHfloat texheightK;
   GLuint texture;
+  VkImageView vkImageView;
   
 } SHImage;
 

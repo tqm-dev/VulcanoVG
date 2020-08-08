@@ -79,6 +79,8 @@ _eglCheckDeviceHandle(EGLDeviceEXT device)
 _EGLDevice _eglSoftwareDevice = {
    .extensions = "EGL_MESA_device_software",
    .MESA_device_software = EGL_TRUE,
+   .EXT_device_drm = EGL_FALSE,
+   .EXT_device_vulkan_logical = EGL_FALSE,
 };
 
 /*
