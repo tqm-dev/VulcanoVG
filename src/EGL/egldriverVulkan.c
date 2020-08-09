@@ -312,26 +312,44 @@ _addLogicalDevices(
    disp->Device = top;
 }
  
-static _EGLConfig _baseConfig = {0};
 static void
-_setupDefaultConfigs(_EGLDisplay* disp
+_createDefaultConfigs(_EGLDisplay* disp
 ){
    EGLint configId;
+   EGLint surfType;
+
+   _EGLConfig* defaultConfig = malloc(sizeof(_EGLConfig));
 
    switch(disp->Platform) {
       case _EGL_PLATFORM_VULKAN:
          configId = EGL_CONFIG_ID_VULKAN_VG;
+         surfType = EGL_PBUFFER_BIT | EGL_WINDOW_BIT;
          break;
       case _EGL_PLATFORM_VULKAN_SURFACELESS:
          configId = EGL_CONFIG_ID_VULKAN_VG_SURFACELESS;
+         surfType = EGL_PBUFFER_BIT;
          break;
       default:
-         assert(0);
-         return;
+         goto cleanup;
    }
 
-   _eglInitConfig(&_baseConfig, disp, configId);
-   _eglLinkConfig(&_baseConfig);
+   // Init with config id
+   _eglInitConfig(defaultConfig, disp, configId);
+
+   // Modify config for VulkanVG
+   _eglSetConfigKey(defaultConfig, EGL_RENDERABLE_TYPE, EGL_OPENVG_BIT);
+   _eglSetConfigKey(defaultConfig, EGL_SURFACE_TYPE, surfType);
+
+   // Link config to egl display
+   if(!_eglLinkConfig(defaultConfig))
+      goto cleanup;
+
+   return;
+
+cleanup:
+   assert(0);
+   free(defaultConfig);
+   return;
 }
 
 #define VULKAN_DEVICE_MAX   8
@@ -361,8 +379,8 @@ _Initialize(
    /* Add logical devices to _EGLDevice*/
   _addLogicalDevices(logDevList, countDev, disp);
 
-   /* Setup egl configs */
-  _setupDefaultConfigs(disp);
+   /* Create default configs */
+  _createDefaultConfigs(disp);
 
    return EGL_TRUE;
 }

@@ -76,7 +76,7 @@ int main(int argc, char **argv)
 	}
 
 	ret = eglWaitClient();
-	printf("eglDestroyContext(): [%d] \r\n", ret);
+	printf("eglWaitClient(): [%d] \r\n", ret);
 
 	ret = eglDestroyContext(dpy, ctx);
 	printf("eglDestroyContext(): [%d] \r\n", ret);
