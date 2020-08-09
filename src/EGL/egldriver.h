@@ -133,8 +133,6 @@ struct _egl_driver
                              _EGLSurface *draw);
    EGLBoolean (*CopyBuffers)(_EGLDriver *drv, _EGLDisplay *disp,
                              _EGLSurface *surface, void *native_pixmap_target);
-   EGLBoolean (*SetDamageRegion)(_EGLDriver *drv, _EGLDisplay *disp,
-                                 _EGLSurface *surface, EGLint *rects, EGLint n_rects);
 
    /* misc functions */
    EGLBoolean (*WaitClient)(_EGLDriver *drv, _EGLDisplay *disp,
@@ -161,71 +159,9 @@ struct _egl_driver
    EGLint (*WaitSyncKHR)(_EGLDriver *drv, _EGLDisplay *disp, _EGLSync *sync);
    EGLBoolean (*SignalSyncKHR)(_EGLDriver *drv, _EGLDisplay *disp,
                                _EGLSync *sync, EGLenum mode);
-   EGLint (*DupNativeFenceFDANDROID)(_EGLDriver *drv, _EGLDisplay *disp,
-                                     _EGLSync *sync);
-
-   EGLBoolean (*SwapBuffersRegionNOK)(_EGLDriver *drv, _EGLDisplay *disp,
-                                      _EGLSurface *surf, EGLint numRects,
-                                      const EGLint *rects);
-
-   _EGLImage *(*CreateDRMImageMESA)(_EGLDriver *drv, _EGLDisplay *disp,
-                                    const EGLint *attr_list);
-   EGLBoolean (*ExportDRMImageMESA)(_EGLDriver *drv, _EGLDisplay *disp,
-                                    _EGLImage *img, EGLint *name,
-                                    EGLint *handle, EGLint *stride);
-
-   EGLBoolean (*BindWaylandDisplayWL)(_EGLDriver *drv, _EGLDisplay *disp,
-                                      struct wl_display *display);
-   EGLBoolean (*UnbindWaylandDisplayWL)(_EGLDriver *drv, _EGLDisplay *disp,
-                                        struct wl_display *display);
-   EGLBoolean (*QueryWaylandBufferWL)(_EGLDriver *drv, _EGLDisplay *displ,
-                                      struct wl_resource *buffer,
-                                      EGLint attribute, EGLint *value);
-
-   struct wl_buffer *(*CreateWaylandBufferFromImageWL)(_EGLDriver *drv,
-                                                       _EGLDisplay *disp,
-                                                       _EGLImage *img);
-
-   EGLBoolean (*SwapBuffersWithDamageEXT)(_EGLDriver *drv, _EGLDisplay *disp,
-                                          _EGLSurface *surface,
-                                          const EGLint *rects, EGLint n_rects);
-
-   EGLBoolean (*PostSubBufferNV)(_EGLDriver *drv, _EGLDisplay *disp,
-                                 _EGLSurface *surface, EGLint x, EGLint y,
-                                 EGLint width, EGLint height);
 
    EGLint (*QueryBufferAge)(_EGLDriver *drv,
                             _EGLDisplay *disp, _EGLSurface *surface);
-   EGLBoolean (*GetSyncValuesCHROMIUM)(_EGLDisplay *disp, _EGLSurface *surface,
-                                       EGLuint64KHR *ust, EGLuint64KHR *msc,
-                                       EGLuint64KHR *sbc);
-
-   EGLBoolean (*ExportDMABUFImageQueryMESA)(_EGLDriver *drv, _EGLDisplay *disp,
-                                            _EGLImage *img, EGLint *fourcc,
-                                            EGLint *nplanes,
-                                            EGLuint64KHR *modifiers);
-   EGLBoolean (*ExportDMABUFImageMESA)(_EGLDriver *drv, _EGLDisplay *disp,
-                                       _EGLImage *img, EGLint *fds,
-                                       EGLint *strides, EGLint *offsets);
-
-   int (*GLInteropQueryDeviceInfo)(_EGLDisplay *disp, _EGLContext *ctx,
-                                   struct mesa_glinterop_device_info *out);
-   int (*GLInteropExportObject)(_EGLDisplay *disp, _EGLContext *ctx,
-                                struct mesa_glinterop_export_in *in,
-                                struct mesa_glinterop_export_out *out);
-
-   EGLBoolean (*QueryDmaBufFormatsEXT)(_EGLDriver *drv, _EGLDisplay *disp,
-                                       EGLint max_formats, EGLint *formats,
-                                       EGLint *num_formats);
-   EGLBoolean (*QueryDmaBufModifiersEXT) (_EGLDriver *drv, _EGLDisplay *disp,
-                                          EGLint format, EGLint max_modifiers,
-                                          EGLuint64KHR *modifiers,
-                                          EGLBoolean *external_only,
-                                          EGLint *num_modifiers);
-
-   void (*SetBlobCacheFuncsANDROID) (_EGLDriver *drv, _EGLDisplay *disp,
-                                     EGLSetBlobFuncANDROID set,
-                                     EGLGetBlobFuncANDROID get);
 };
 
 
