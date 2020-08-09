@@ -75,8 +75,8 @@ int main(int argc, char **argv)
         vgFinish();
 	}
 
-	ret = eglWaitClient();
-	printf("eglWaitClient(): [%d] \r\n", ret);
+	ret = eglSwapBuffers(dpy, surf);
+	printf("eglSwapBuffers(): [%d] \r\n", ret);
 
 	ret = eglDestroyContext(dpy, ctx);
 	printf("eglDestroyContext(): [%d] \r\n", ret);

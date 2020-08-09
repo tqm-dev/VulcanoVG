@@ -602,7 +602,25 @@ _makeCurrent(
    if (!_eglBindContext(ctx, dsurf, rsurf, &old_ctx, &old_dsurf, &old_rsurf))
       return EGL_FALSE;
 
+// TODO:Prepare command buffer to start drawing
+//   vkBeginCommandBuffer
+
+// TODO:Bind frame buffer to the rendering target
+//   vkCmdBeginRenderPass
+
+
    return EGL_TRUE;
+}
+
+static EGLBoolean
+swapBuffers(_EGLDriver *drv, _EGLDisplay *disp, _EGLSurface *surf)
+{
+
+// TODO:Finalize command stuffs
+//   vkCmdEndRenderPass
+//   vkEndCommandBuffer
+
+   return EGL_FALSE;
 }
 
 _EGLDriver _eglDriver = {
@@ -622,7 +640,7 @@ _EGLDriver _eglDriver = {
    .BindTexImage                  = NULL,
    .ReleaseTexImage               = NULL,
    .SwapInterval                  = NULL,
-   .SwapBuffers                   = NULL,
+   .SwapBuffers                   = swapBuffers,
    .CopyBuffers                   = NULL,
    .QueryBufferAge                = NULL,
    .CreateImageKHR                = NULL,
