@@ -1501,12 +1501,15 @@ eglCreatePbufferFromClientBuffer(EGLDisplay dpy, EGLenum buftype,
    _EGLDisplay *disp = _eglLockDisplay(dpy);
    _EGLConfig *conf = _eglLookupConfig(config, disp);
    _EGLDriver *drv;
+   _EGLSurface *surf;
 
    _EGL_FUNC_START(disp, EGL_OBJECT_DISPLAY_KHR, NULL, EGL_NO_SURFACE);
 
    _EGL_CHECK_CONFIG(disp, conf, EGL_NO_SURFACE, drv);
 
-   return (EGLSurface)drv->CreatePbufferFromClientBuffer(drv, disp, buftype, buffer, conf, attrib_list);
+   surf = drv->CreatePbufferFromClientBuffer(drv, disp, buftype, buffer, conf, attrib_list);
+
+   RETURN_EGL_EVAL(disp, surf);
 }
 
 

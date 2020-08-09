@@ -587,12 +587,30 @@ cleanup:
    return EGL_NO_SURFACE;
 }
 
+
+EGLBoolean
+_makeCurrent(
+   _EGLDriver  *drv,
+   _EGLDisplay *disp, 
+   _EGLSurface *dsurf,
+   _EGLSurface *rsurf, 
+   _EGLContext *ctx
+){
+   _EGLContext *old_ctx;
+   _EGLSurface *old_dsurf, *old_rsurf;
+   
+   if (!_eglBindContext(ctx, dsurf, rsurf, &old_ctx, &old_dsurf, &old_rsurf))
+      return EGL_FALSE;
+
+   return EGL_TRUE;
+}
+
 _EGLDriver _eglDriver = {
    .Initialize                    = _Initialize,
    .Terminate                     = NULL,
    .CreateContext                 = _CreateContext,
    .DestroyContext                = NULL,
-   .MakeCurrent                   = NULL,
+   .MakeCurrent                   = _makeCurrent,
    .CreateWindowSurface           = NULL,
    .CreatePixmapSurface           = NULL,
    .CreatePbufferSurface          = NULL,
