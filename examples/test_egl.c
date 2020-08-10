@@ -75,9 +75,6 @@ int main(int argc, char **argv)
         vgFinish();
 	}
 
-	ret = eglSwapBuffers(dpy, surf);
-	printf("eglSwapBuffers(): [%d] \r\n", ret);
-
 	ret = eglDestroyContext(dpy, ctx);
 	printf("eglDestroyContext(): [%d] \r\n", ret);
 

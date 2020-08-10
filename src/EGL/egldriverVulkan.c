@@ -138,7 +138,7 @@ static int _createLogicalDevice(
    LogicalDevice*          dev,
    VkQueueFlags            qflags,
    VkDeviceQueueCreateInfo queue_info[],
-   uint32_t*               queue_info_count, // in/out  This will be edited by checking qflags
+   uint32_t*               queue_family_count, // in/out  This will be edited by checking qflags
    const char *            ext_names[],
    uint32_t                ext_count
 ){
@@ -149,8 +149,8 @@ static int _createLogicalDevice(
    *dev = (LogicalDevice){0};
    
    /* We have already seen how to create a logical device and request queues in Tutorial 2 and again in 5 */
-   uint32_t max_queue_count = *queue_info_count;
-   *queue_info_count = 0;
+   uint32_t max_queue_count = *queue_family_count;
+   *queue_family_count = 0;
    
    uint32_t max_family_queues = 0;
    for (uint32_t i = 0; i < phy_dev->queue_family_count; ++i)
@@ -172,11 +172,11 @@ static int _createLogicalDevice(
       info.queueFamilyIndex = i;
       info.queueCount = phy_dev->queue_families[i].queueCount;
       info.pQueuePriorities = queue_priorities;
-      queue_info[(*queue_info_count)++] = info;
+      queue_info[(*queue_family_count)++] = info;
    }
    
    /* If there are no compatible queues, there is little one can do here */
-   if (*queue_info_count == 0)
+   if (*queue_family_count == 0)
    {
       retval = -1;
       goto exit_failed;
@@ -184,7 +184,7 @@ static int _createLogicalDevice(
    
    VkDeviceCreateInfo dev_info = {0};
    dev_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-   dev_info.queueCreateInfoCount = *queue_info_count;
+   dev_info.queueCreateInfoCount = *queue_family_count;
    dev_info.pQueueCreateInfos = queue_info;
    dev_info.enabledExtensionCount = ext_count;
    dev_info.ppEnabledExtensionNames = ext_names;
@@ -202,19 +202,20 @@ _createCommandBuffers(
    PhysicalDevice *        phy_dev,
    LogicalDevice *         dev,
    VkDeviceQueueCreateInfo queue_info[],
-   uint32_t                queue_info_count
+   uint32_t                queue_family_count,
+   uint8_t                 buffer_num_per_queue
 ){
    int retval = 0;
    VkResult res;
    
-   dev->queue_families = malloc(queue_info_count * sizeof *dev->queue_families);
+   dev->queue_families = malloc(queue_family_count * sizeof *dev->queue_families);
    if (dev->queue_families == NULL)
    {
       retval = -1;
       goto exit_failed;
    }
    
-   for (uint32_t i = 0; i < queue_info_count; ++i)
+   for (uint32_t i = 0; i < queue_family_count; ++i)
    {
       QueueFamily *cmd = &dev->queue_families[i];
       *cmd = (QueueFamily){0};
@@ -249,7 +250,7 @@ _createCommandBuffers(
       VkCommandBufferAllocateInfo buffer_info = {0};
       buffer_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
       buffer_info.commandPool = cmd->pool;
-      buffer_info.commandBufferCount = queue_info[i].queueCount;
+      buffer_info.commandBufferCount = queue_info[i].queueCount * buffer_num_per_queue;
       
       res = vkAllocateCommandBuffers(dev->device, &buffer_info, cmd->buffers);
       if (res){
@@ -268,27 +269,28 @@ static void
 _createLogicalDevices(
    PhysicalDevice* phyDevList, // in
    LogicalDevice*  logDevList, // out
-   uint32_t        count       // in
+   uint32_t        deviceCount // in
 ){
    const char *extension_names[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
    int res;
 
-   for (uint32_t i = 0; i < count; ++i) {
+   for (uint32_t i = 0; i < deviceCount; ++i) {
 
       PhysicalDevice *phy_dev = &phyDevList[i];
       LogicalDevice  *dev = &logDevList[i];
       VkDeviceQueueCreateInfo queue_info[phy_dev->queue_family_count];
-      uint32_t queue_info_count = phy_dev->queue_family_count;
+      uint32_t queue_family_count = phy_dev->queue_family_count;
 
       // Create VkDevice for graphics processing
       res = _createLogicalDevice(phy_dev, dev, VK_QUEUE_GRAPHICS_BIT, queue_info,
-              &queue_info_count, // Containing all of the queue families
+              &queue_family_count, // Containing all of the queue families
               extension_names, sizeof extension_names / sizeof *extension_names);
 
       // Setup command buffers
       if(res == 0)
          _createCommandBuffers(phy_dev, dev, queue_info,
-            queue_info_count // It should equal to 1 (a graphics queue) because VK_QUEUE_GRAPHICS_BIT enabled.
+            queue_family_count, // It should equal to 1 (a graphics queue) because VK_QUEUE_GRAPHICS_BIT enabled.
+            2                   // Command buffer num per command queue.
          );
    }
 }
@@ -296,13 +298,13 @@ _createLogicalDevices(
 static void
 _addLogicalDevices(
    LogicalDevice* logDevList, // in
-   uint32_t       count,      // in
+   uint32_t       deviceCount,// in
    _EGLDisplay*   disp        // out
 ){
    _EGLDevice *top = NULL;
 
    // Add _EGLDevice containing the LogicalDevice to the list in _eglGlobal.
-   for(uint32_t i = 0; i < count; i++){
+   for(uint32_t i = 0; i < deviceCount; i++){
       top = _eglAddDevice((void*)&logDevList[i], false); // Always returns a top of the list of _EGLDevice.
       if (!top)
          break;
@@ -506,7 +508,7 @@ typedef struct {
    VkRenderPass renderPass;
 } VuSurface;
 
-_EGLSurface* createPbufferFromClientBuffer(
+_EGLSurface* _createPbufferFromClientBuffer(
    _EGLDriver *drv,
    _EGLDisplay *disp,
    EGLenum buftype,
@@ -655,20 +657,20 @@ _makeCurrent(
       .clearValueCount = 2,
       .pClearValues = clear_values,
    };
+
+   // TODO: Memory and pipline barrier
+   ;;
+
+   // Start recording commands
    vkCmdBeginRenderPass(cmdBuffer, &pass_info, VK_SUBPASS_CONTENTS_INLINE);
 
+   // TODO: Prepare for rendering
+   ;;
+
+   // Stop recording commands
+   vkEndCommandBuffer(cmdBuffer);
+
    return EGL_TRUE;
-}
-
-static EGLBoolean
-swapBuffers(_EGLDriver *drv, _EGLDisplay *disp, _EGLSurface *surf)
-{
-
-// TODO:Finalize command stuffs
-//   vkCmdEndRenderPass
-//   vkEndCommandBuffer
-
-   return EGL_FALSE;
 }
 
 _EGLDriver _eglDriver = {
@@ -680,7 +682,7 @@ _EGLDriver _eglDriver = {
    .CreateWindowSurface           = NULL,
    .CreatePixmapSurface           = NULL,
    .CreatePbufferSurface          = NULL,
-   .CreatePbufferFromClientBuffer = createPbufferFromClientBuffer,
+   .CreatePbufferFromClientBuffer = _createPbufferFromClientBuffer,
    .DestroySurface                = NULL,
    .GetProcAddress                = NULL,
    .WaitClient                    = NULL,
@@ -688,7 +690,7 @@ _EGLDriver _eglDriver = {
    .BindTexImage                  = NULL,
    .ReleaseTexImage               = NULL,
    .SwapInterval                  = NULL,
-   .SwapBuffers                   = swapBuffers,
+   .SwapBuffers                   = NULL,
    .CopyBuffers                   = NULL,
    .QueryBufferAge                = NULL,
    .CreateImageKHR                = NULL,
