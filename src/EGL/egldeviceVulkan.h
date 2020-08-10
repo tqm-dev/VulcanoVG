@@ -59,11 +59,11 @@ typedef struct
    uint32_t         queue_count;
    VkCommandBuffer* buffers;
    uint32_t         buffer_count;
-} CommandPool;
+} QueueFamily;
 
 typedef struct {
    VkDevice         device;
-   CommandPool*     command_pools;
+   QueueFamily*     queue_families;
    uint32_t         command_pool_count;
 } LogicalDevice;
 

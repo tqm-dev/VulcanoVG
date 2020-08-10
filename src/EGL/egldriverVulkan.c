@@ -207,8 +207,8 @@ _createCommandBuffers(
    int retval = 0;
    VkResult res;
    
-   dev->command_pools = malloc(queue_info_count * sizeof *dev->command_pools);
-   if (dev->command_pools == NULL)
+   dev->queue_families = malloc(queue_info_count * sizeof *dev->queue_families);
+   if (dev->queue_families == NULL)
    {
       retval = -1;
       goto exit_failed;
@@ -216,8 +216,8 @@ _createCommandBuffers(
    
    for (uint32_t i = 0; i < queue_info_count; ++i)
    {
-      CommandPool *cmd = &dev->command_pools[i];
-      *cmd = (CommandPool){0};
+      QueueFamily *cmd = &dev->queue_families[i];
+      *cmd = (QueueFamily){0};
       
       cmd->qflags = phy_dev->queue_families[queue_info[i].queueFamilyIndex].queueFlags;
       
@@ -282,13 +282,13 @@ _createLogicalDevices(
 
       // Create VkDevice for graphics processing
       res = _createLogicalDevice(phy_dev, dev, VK_QUEUE_GRAPHICS_BIT, queue_info,
-              &queue_info_count, // Containing all of queue family
+              &queue_info_count, // Containing all of the queue families
               extension_names, sizeof extension_names / sizeof *extension_names);
 
       // Setup command buffers
       if(res == 0)
          _createCommandBuffers(phy_dev, dev, queue_info,
-            queue_info_count // Containing only a graphics queue family because of only VK_QUEUE_GRAPHICS_BIT enabled.
+            queue_info_count // It should equal to 1 (a graphics queue) because VK_QUEUE_GRAPHICS_BIT enabled.
          );
    }
 }
@@ -502,7 +502,8 @@ static _EGLDevice* _getPrimaryDevice(_EGLDisplay* disp)
 
 typedef struct {
    _EGLSurface   base;
-   VkFramebuffer fb;
+   VkFramebuffer frameBuffer;
+   VkRenderPass renderPass;
 } VuSurface;
 
 _EGLSurface* createPbufferFromClientBuffer(
@@ -529,54 +530,69 @@ _EGLSurface* createPbufferFromClientBuffer(
    if(dev == NULL || dev->vk.device == NULL)
       goto cleanup;
 
+   SHImage* image = (SHImage*)buffer;
+
+   vuSurf->base.Width  = image->width;
+   vuSurf->base.Height = image->height; 
+
    // Create render pass
-   VkRenderPass renderPass;
    {
-      VkAttachmentDescription attachmentDesc[1];
-      attachmentDesc[0].format = VK_FORMAT_R8G8B8A8_SRGB;
-      attachmentDesc[0].samples = VK_SAMPLE_COUNT_1_BIT;
-      attachmentDesc[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-      attachmentDesc[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-      attachmentDesc[0].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-      attachmentDesc[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+      // Subpass descriptions
+      VkAttachmentReference colorAttachmentRef = {
+         .attachment = 0, /* corresponds to the index in pAttachments of VkRenderPassCreateInfo */
+         .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+      };
+      VkSubpassDescription graphicsSubpassDesc = {
+         .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+         .colorAttachmentCount = 1,
+         .pColorAttachments = &colorAttachmentRef,
+         .pDepthStencilAttachment = NULL,
+      };
+      VkSubpassDescription subpassDescs[1] = {
+         graphicsSubpassDesc
+      };
 
-      VkAttachmentReference attachmentRefs[1];
-      attachmentRefs[0].attachment = 0; /* corresponds to the index in pAttachments of VkRenderPassCreateInfo */
-      attachmentRefs[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+      // Attachment descriptions
+      VkAttachmentDescription colorAttachmentDesc = {
+         .format = VK_FORMAT_R8G8B8A8_SRGB,
+         .samples = VK_SAMPLE_COUNT_1_BIT,
+         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+         .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+         .initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+         .finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+      };
+      VkAttachmentDescription attachmentDesc[1] = {
+         colorAttachmentDesc
+      };
+      VkRenderPassCreateInfo rpInfo = {
+         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+         .attachmentCount = 1,
+         .pAttachments = attachmentDesc,
+         .subpassCount = 1,
+         .pSubpasses = subpassDescs,
+      };
 
-      VkSubpassDescription subpassDescs[1];
-      subpassDescs[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-      subpassDescs[0].colorAttachmentCount = 1;
-      subpassDescs[0].pColorAttachments = &attachmentRefs[0];
-      subpassDescs[0].pDepthStencilAttachment = NULL;
-
-      VkRenderPassCreateInfo rpInfo;
-      rpInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-      rpInfo.attachmentCount = 1;
-      rpInfo.pAttachments = attachmentDesc;
-      rpInfo.subpassCount = 1;
-      rpInfo.pSubpasses = subpassDescs;
-
-      vkCreateRenderPass(dev->vk.device, &rpInfo, NULL, &renderPass);
+      if(vkCreateRenderPass(dev->vk.device, &rpInfo, NULL, &vuSurf->renderPass) != VK_SUCCESS)
+         goto cleanup;
    }
 
    // Create frame buffer
    {
       VkImageView fbAttachments[1];
-      SHImage* image = (SHImage*)buffer;
       fbAttachments[0] = image->vkImageView;
 
-      VkFramebufferCreateInfo fbInfo = {0};
-      fbInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-      fbInfo.pNext = NULL;
-      fbInfo.flags = 0;
-      fbInfo.renderPass = renderPass;
-      fbInfo.attachmentCount = 1;
-      fbInfo.pAttachments = fbAttachments;
-      fbInfo.width = image->width;
-      fbInfo.height = image->height;
-      fbInfo.layers = 1;
-      if(vkCreateFramebuffer(dev->vk.device, &fbInfo, NULL, &vuSurf->fb) != VK_SUCCESS)
+      VkFramebufferCreateInfo fbInfo = {
+         .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+         .pNext = NULL,
+         .flags = 0,
+         .renderPass = vuSurf->renderPass,
+         .attachmentCount = 1,
+         .pAttachments = fbAttachments,
+         .width = image->width,
+         .height = image->height,
+         .layers = 1,
+      };
+      if(vkCreateFramebuffer(dev->vk.device, &fbInfo, NULL, &vuSurf->frameBuffer) != VK_SUCCESS)
          goto cleanup;
    }
 
@@ -598,16 +614,48 @@ _makeCurrent(
 ){
    _EGLContext *old_ctx;
    _EGLSurface *old_dsurf, *old_rsurf;
+   VuSurface   *vuSurf = (VuSurface*)dsurf;
    
    if (!_eglBindContext(ctx, dsurf, rsurf, &old_ctx, &old_dsurf, &old_rsurf))
       return EGL_FALSE;
+   
+   _EGLDevice* dev = _getPrimaryDevice(disp);
 
-// TODO:Prepare command buffer to start drawing
-//   vkBeginCommandBuffer
+   // Queue family must be a graphics queue family
+   QueueFamily queueFamily = dev->vk.queue_families[0];
+   assert(queueFamily.qflags & VK_QUEUE_GRAPHICS_BIT);
 
-// TODO:Bind frame buffer to the rendering target
-//   vkCmdBeginRenderPass
+   // Use first command buffer
+   VkCommandBuffer cmdBuffer = queueFamily.buffers[0];
 
+   // Begin command buffer
+   vkResetCommandBuffer(cmdBuffer, 0);
+   VkCommandBufferBeginInfo begin_info = {
+      .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+      .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+   };
+   if(vkBeginCommandBuffer(cmdBuffer, &begin_info) != VK_SUCCESS)
+      return EGL_FALSE;
+
+   // Begin render pass to make frame buffer as arendering target
+   VkClearValue clear_values[2] = {
+      { .color = { .float32 = {0.1, 0.1, 0.1, 255}, }, },
+      { .depthStencil = { .depth = -1000, }, },
+   };
+   VkRenderPassBeginInfo pass_info = {
+      .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+      .renderPass  = vuSurf->renderPass,
+      .framebuffer = vuSurf->frameBuffer,
+      .renderArea  = {
+             .offset = { .x = 0,
+                         .y = 0, },
+             .extent = { .width  = dsurf->Width,
+                         .height = dsurf->Height },
+      },
+      .clearValueCount = 2,
+      .pClearValues = clear_values,
+   };
+   vkCmdBeginRenderPass(cmdBuffer, &pass_info, VK_SUBPASS_CONTENTS_INLINE);
 
    return EGL_TRUE;
 }
