@@ -266,7 +266,7 @@ exit_failed:
 }
 
 static void
-_createLogicalDevices(
+_setupLogicalDevices(
    PhysicalDevice* phyDevList, // in
    LogicalDevice*  logDevList, // out
    uint32_t        deviceCount // in
@@ -315,7 +315,7 @@ _addLogicalDevices(
 }
  
 static void
-_createDefaultConfigs(_EGLDisplay* disp
+_setupDefaultConfigs(_EGLDisplay* disp
 ){
    EGLint configId;
    EGLint surfType;
@@ -360,29 +360,28 @@ _Initialize(
    _EGLDriver *drv,
    _EGLDisplay *disp
 ){
-   VkInstance vkInstance;
+   VkInstance instance;
    PhysicalDevice phyDevList[VULKAN_DEVICE_MAX] = {0};
    LogicalDevice  logDevList[VULKAN_DEVICE_MAX] = {0};
    uint32_t countDev;
   
    /* Get instance */
-   vkInstance = _getInstance(disp);
-   if(vkInstance == NULL)
+   if((instance = _getInstance(disp)) == NULL)
       return EGL_FALSE;
 
    /* Get physical devices */
-   _enumeratePhysicalDevices(vkInstance, phyDevList, &countDev);
+   _enumeratePhysicalDevices(instance, phyDevList, &countDev);
    if(countDev > VULKAN_DEVICE_MAX)
       return EGL_FALSE;
 
-   /* Create logical devices */
-   _createLogicalDevices(phyDevList, logDevList, countDev);
+   /* Setup logical devices and command buffers*/
+   _setupLogicalDevices(phyDevList, logDevList, countDev);
 
    /* Add logical devices to _EGLDevice*/
   _addLogicalDevices(logDevList, countDev, disp);
 
    /* Create default configs */
-  _createDefaultConfigs(disp);
+  _setupDefaultConfigs(disp);
 
    return EGL_TRUE;
 }
@@ -605,7 +604,7 @@ cleanup:
    return EGL_NO_SURFACE;
 }
 
-
+#define COM_INDEX_PREPARE_RENDERING  0
 EGLBoolean
 _makeCurrent(
    _EGLDriver  *drv,
@@ -627,16 +626,16 @@ _makeCurrent(
    QueueFamily queueFamily = dev->vk.queue_families[0];
    assert(queueFamily.qflags & VK_QUEUE_GRAPHICS_BIT);
 
-   // Use first command buffer
-   VkCommandBuffer cmdBuffer = queueFamily.buffers[0];
+   // Select command buffer to prepare rendering
+   VkCommandBuffer cbPrepareRendering = queueFamily.buffers[COM_INDEX_PREPARE_RENDERING];
 
    // Begin command buffer
-   vkResetCommandBuffer(cmdBuffer, 0);
+   vkResetCommandBuffer(cbPrepareRendering, 0);
    VkCommandBufferBeginInfo begin_info = {
       .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
       .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
    };
-   if(vkBeginCommandBuffer(cmdBuffer, &begin_info) != VK_SUCCESS)
+   if(vkBeginCommandBuffer(cbPrepareRendering, &begin_info) != VK_SUCCESS)
       return EGL_FALSE;
 
    // Begin render pass to make frame buffer as arendering target
@@ -662,13 +661,13 @@ _makeCurrent(
    ;;
 
    // Start recording commands
-   vkCmdBeginRenderPass(cmdBuffer, &pass_info, VK_SUBPASS_CONTENTS_INLINE);
+   vkCmdBeginRenderPass(cbPrepareRendering, &pass_info, VK_SUBPASS_CONTENTS_INLINE);
 
    // TODO: Prepare for rendering
    ;;
 
    // Stop recording commands
-   vkEndCommandBuffer(cmdBuffer);
+   vkEndCommandBuffer(cbPrepareRendering);
 
    return EGL_TRUE;
 }
