@@ -5,7 +5,12 @@ This project is still Working In Progress.
 provisional specification released in May 2020.
 
 VulcanVG will contain both EGL and OpenVG implementation on Vulkan.
-Also It would perform with Vulkan applications or stand-alone in using EGL, OpenVG.
+It would perform with Vulkan applications or stand-alone in using EGL, OpenVG.
+
+The EGL implementation in this project is actually based on mesa egl (https://gitlab.freedesktop.org/mesa/mesa/-/tree/master/src/egl).
+Also, OpenVG implementation in this project is based on ShivaVG (https://github.com/ileben/ShivaVG).
+Now, I am trying to integrate both these implementations to Vulkan.
+
 
   I.   Build
   II.  Testing
