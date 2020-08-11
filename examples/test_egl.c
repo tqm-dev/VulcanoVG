@@ -3,9 +3,10 @@
 
 #include <vulkan/vulkan.h>
 #include <VG/openvg.h>
-#include <VG/vulkanvg.h>
+#include <VG/vulcanvg.h>
+#include <EGL/vulcanegl.h>
 
-#define SURFACELESS_PLATFORM 1
+#define SURFACELESS_PLATFORM 0
 
 #if SURFACELESS_PLATFORM == 1
 static VkInstance _createVkInstance(void);
@@ -21,8 +22,12 @@ int main(int argc, char **argv)
 	EGLBoolean ret;
 	EGLint major, minor;
 	EGLSurface surf;
+#if SURFACELESS_PLATFORM
 	VGImage image;
 	VkImage vkImage;
+#else
+	EGLNativeWindowType win;
+#endif
 
     testInit(argc, argv, 600,600, "VulkanVG: Dummy");
 
@@ -60,20 +65,44 @@ int main(int argc, char **argv)
 	ctx = eglCreateContext(dpy, config, EGL_NO_CONTEXT, NULL);
 	printf("eglCreateContext(): [%p] \r\n", ctx);
 
+#if SURFACELESS_PLATFORM
     image = vgCreateImageFromVkImageEXT(VG_sRGBA_8888, SURF_WIDTH, SURF_HEIGHT, VG_IMAGE_QUALITY_BETTER, vkImage);
 	printf("vgCreateImageFromVkImageEXT(): [%p] \r\n", image);
 
 	surf = eglCreatePbufferFromClientBuffer(dpy, EGL_OPENVG_IMAGE, (EGLClientBuffer)image, config, NULL);
 	printf("eglCreatePbufferFromClientBuffer(): [%p] \r\n", surf);
+#else
+	win = vcNativeCreateWindow(SURF_WIDTH, SURF_HEIGHT, VC_FORMAT_R8G8B8A8_SRGB);
+	printf("vcNativeCreateWindow(): [%ld] \r\n", win);
 
+	surf = eglCreateWindowSurface(dpy, config, win, NULL);
+	printf("eglCreatePbufferFromClientBuffer(): [%p] \r\n", surf);
+#endif
 	ret = eglMakeCurrent(dpy, surf, surf, ctx);
 	printf("eglMakeCurrent(): [%d] \r\n", ret);
 
 	// Draw something by OpenVG
+//	while(1)
 	{
 		vgClear(0, 0, SURF_WIDTH, SURF_HEIGHT);
-        vgFinish();
+
+#if SURFACELESS_PLATFORM
+		ret = eglWaitClient();
+		printf("eglWaitClient(): [%d] \r\n", ret);
+#else
+		ret = eglSwapBuffers(dpy, surf);
+		printf("eglSwapBuffers(): [%d] \r\n", ret);
+#endif
 	}
+
+	eglDestroySurface(dpy, surf);
+
+#if SURFACELESS_PLATFORM
+    vgDestroyImage(image);
+#else
+	ret = vcNativeDestroyWindow(win);
+	printf("vcNativeDestroyWindow(): [%d] \r\n", ret);
+#endif
 
 	ret = eglDestroyContext(dpy, ctx);
 	printf("eglDestroyContext(): [%d] \r\n", ret);

@@ -20,7 +20,7 @@
 
 #define VG_API_EXPORT
 #include <VG/openvg.h>
-#include <VG/vulkanvg.h>
+#include <VG/vulcanvg.h>
 #include "shImage.h"
 #include "shContext.h"
 #include <string.h>
