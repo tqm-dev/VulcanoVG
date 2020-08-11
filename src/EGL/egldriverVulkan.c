@@ -604,6 +604,71 @@ cleanup:
    return EGL_NO_SURFACE;
 }
 
+EGLBoolean _prepareRendering(
+   VkCommandBuffer cmdbuf,
+   VuSurface      *vuSurf
+){
+   _EGLSurface* surf = &vuSurf->base;
+
+   // Start recording commands
+   VkCommandBufferBeginInfo begin_info = {
+      .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+      .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+   };
+   if(vkBeginCommandBuffer(cmdbuf, &begin_info) != VK_SUCCESS)
+      return EGL_FALSE;
+
+   // Begin render pass to make frame buffer as arendering target
+   VkClearValue clear_values[2] = {
+      { .color = { .float32 = {0.1, 0.1, 0.1, 255}, }, },
+      { .depthStencil = { .depth = -1000, }, },
+   };
+   VkRenderPassBeginInfo pass_info = {
+      .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+      .renderPass  = vuSurf->renderPass,
+      .framebuffer = vuSurf->frameBuffer,
+      .renderArea  = {
+             .offset = { .x = 0,
+                         .y = 0, },
+             .extent = { .width  = surf->Width,
+                         .height = surf->Height },
+      },
+      .clearValueCount = 2,
+      .pClearValues = clear_values,
+   };
+
+   // TODO: Memory barrier
+   // TODO: Pipline barrier
+
+   // Start recording commands
+   vkCmdBeginRenderPass(cmdbuf, &pass_info, VK_SUBPASS_CONTENTS_INLINE);
+
+   // Viewport
+   VkViewport viewport = {
+      .x = 0,
+      .y = 0,
+      .width  = surf->Width,
+      .height = surf->Height,
+      .minDepth = 0,
+      .maxDepth = 1,
+   };
+   vkCmdSetViewport(cmdbuf, 0, 1, &viewport);
+   
+   // Scissor
+   VkRect2D scissor = {
+      .offset = { .x = 0, .y = 0, },
+      .extent = {.width  = surf->Width,
+                 .height = surf->Height },
+   };
+   vkCmdSetScissor(cmdbuf, 0, 1, &scissor);
+
+   // Stop recording commands
+   if(vkEndCommandBuffer(cmdbuf) != VK_SUCCESS)
+      return EGL_FALSE;
+
+   return EGL_TRUE;
+}
+
 #define COM_INDEX_PREPARE_RENDERING  0
 EGLBoolean
 _makeCurrent(
@@ -627,47 +692,12 @@ _makeCurrent(
    assert(queueFamily.qflags & VK_QUEUE_GRAPHICS_BIT);
 
    // Select command buffer to prepare rendering
-   VkCommandBuffer cbPrepareRendering = queueFamily.buffers[COM_INDEX_PREPARE_RENDERING];
+   VkCommandBuffer cmdbuf = queueFamily.buffers[COM_INDEX_PREPARE_RENDERING];
+   vkResetCommandBuffer(cmdbuf, 0);
 
-   // Begin command buffer
-   vkResetCommandBuffer(cbPrepareRendering, 0);
-   VkCommandBufferBeginInfo begin_info = {
-      .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-      .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-   };
-   if(vkBeginCommandBuffer(cbPrepareRendering, &begin_info) != VK_SUCCESS)
+   // Record commands to prepare rendering
+   if(!_prepareRendering(cmdbuf, vuSurf))
       return EGL_FALSE;
-
-   // Begin render pass to make frame buffer as arendering target
-   VkClearValue clear_values[2] = {
-      { .color = { .float32 = {0.1, 0.1, 0.1, 255}, }, },
-      { .depthStencil = { .depth = -1000, }, },
-   };
-   VkRenderPassBeginInfo pass_info = {
-      .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-      .renderPass  = vuSurf->renderPass,
-      .framebuffer = vuSurf->frameBuffer,
-      .renderArea  = {
-             .offset = { .x = 0,
-                         .y = 0, },
-             .extent = { .width  = dsurf->Width,
-                         .height = dsurf->Height },
-      },
-      .clearValueCount = 2,
-      .pClearValues = clear_values,
-   };
-
-   // TODO: Memory and pipline barrier
-   ;;
-
-   // Start recording commands
-   vkCmdBeginRenderPass(cbPrepareRendering, &pass_info, VK_SUBPASS_CONTENTS_INLINE);
-
-   // TODO: Prepare for rendering
-   ;;
-
-   // Stop recording commands
-   vkEndCommandBuffer(cbPrepareRendering);
 
    return EGL_TRUE;
 }
