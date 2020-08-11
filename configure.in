@@ -1,4 +1,4 @@
-AC_INIT(VulkanVG, 0.2.1)
+AC_INIT(VulcanoVG, 0.2.1)
 AC_CONFIG_HEADERS([config.h:config.h.in])
 AM_INIT_AUTOMAKE([gnu subdir-objects])
 AC_CANONICAL_HOST
@@ -225,44 +225,44 @@ LDFLAGS=""
 
 NO_GL_H_MSG="
 
-	gl.h header missing! VulkanVG cannot be built without
+	gl.h header missing! VulcanVG cannot be built without
 	OpenGL headers.
 "
 NO_GLU_H_MSG="
 
-	glu.h header missing! VulkanVG cannot be built without
+	glu.h header missing! VulcanVG cannot be built without
 	OpenGL headers.
 "
 NO_GL_MSG="
 
-	Failed linking with GL library! VulkanVG cannot be built
+	Failed linking with GL library! VulcanVG cannot be built
 	without OpenGL library.
 "
 NO_GLU_MSG="
 
-	Failed linking with GLU library! VulkanVG cannot be built
+	Failed linking with GLU library! VulcanVG cannot be built
 	without OpenGL library.
 "
 NO_GLX_H_MSG="
 
-	glx.h header missing! VulkanVG cannot be build without
+	glx.h header missing! VulcanVG cannot be build without
 	GLX headers.
 "
 NO_GLX_MSG="
 
-	Failed linking with GLX library! VulkanVG cannot be built
+	Failed linking with GLX library! VulcanVG cannot be built
 	without GLX library.
 "
 
 NO_VULKAN_H_MSG="
 
-	vulkan.h header missing! VulkanVG cannot be built without
+	vulkan.h header missing! VulcanVG cannot be built without
 	Vulkan headers.
 "
 
 NO_VULKAN_MSG="
 
-	Failed linking with Vulkan library! VulkanVG cannot be built
+	Failed linking with Vulkan library! VulcanVG cannot be built
 	without Vulkan library.
 "
 
@@ -339,7 +339,7 @@ examples/Makefile
 #echo "Vulkan library present  $has_vulkan"
 
 EXAMPLES_LIST="
-VulkanVG will be compiled with the following example programs
+VulcanVG will be compiled with the following example programs
 (run './configure --help' to see how to change selection) :
 
   VGU                       ${build_test_vgu}
@@ -355,13 +355,13 @@ VulkanVG will be compiled with the following example programs
 "
 
 if test "x$has_glut_h" = "xno"; then
-	echo "VulkanVG example programs will not be built because"
+	echo "VulcanVG example programs will not be built because"
 	echo "the GLUT headers are missing!"
 
 else
 
 	if test "x$has_glut" = "xno"; then
-		echo "VulkanVG example programs will not be built because"
+		echo "VulcanVG example programs will not be built because"
 		echo "linking to GLUT library failed!"
 	
 	else

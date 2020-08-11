@@ -45,7 +45,7 @@ _getInstance(
       
       /* App info */
       appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-      appInfo.pApplicationName = "VulkanVG";
+      appInfo.pApplicationName = "VulcanoVG";
       appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
       appInfo.pEngineName = "No Engine";
       appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
@@ -312,7 +312,7 @@ _setupDefaultConfigs(_EGLDisplay* disp
    // Init with config id
    _eglInitConfig(defaultConfig, disp, configId);
 
-   // Modify config for VulkanVG
+   // Modify config for VulcanoVG
    _eglSetConfigKey(defaultConfig, EGL_RENDERABLE_TYPE, EGL_OPENVG_BIT);
    _eglSetConfigKey(defaultConfig, EGL_SURFACE_TYPE, surfType);
 
@@ -369,7 +369,7 @@ static bool _initVGContext(VGContext *c)
   
   /* GetString info */
   strncpy(c->vendor, "John doe", sizeof(c->vendor));
-  strncpy(c->renderer, "VulkanVG 0.1.0", sizeof(c->renderer));
+  strncpy(c->renderer, "VulcanoVG 0.1.0", sizeof(c->renderer));
   strncpy(c->version, "1.0", sizeof(c->version));
   strncpy(c->extensions, "", sizeof(c->extensions));
   

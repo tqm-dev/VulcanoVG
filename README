@@ -1,10 +1,10 @@
 
 This project is still Working In Progress.
 
- VulcanVG aims to be an implementation of the Khronos Group OpenVG 1.1 Lite 
+VulcanoVG aims to be an implementation of the Khronos Group OpenVG 1.1 Lite 
 provisional specification released in May 2020.
 
-VulcanVG will contain both EGL and OpenVG implementation on Vulkan.
+VulcanoVG will contain both EGL and OpenVG implementation on Vulkan.
 It would perform with Vulkan applications or stand-alone in using EGL, OpenVG.
 
 The EGL implementation in this project is actually based on mesa egl (https://gitlab.freedesktop.org/mesa/mesa/-/tree/master/src/egl).
@@ -28,7 +28,7 @@ I. Build
 
 * Compiling under UNIX systems:
 
-    $ cd VulcanVG
+    $ cd VulcanoVG
     $ sh autogen.sh
     $ ./configure LIBS="-lGL -lGLU -lglut -ljpeg -lvulkan"
     $ make

@@ -91,8 +91,8 @@ void VGContext_ctor(VGContext *c)
   c->surfaceHeight = 0;
   
   /* GetString info */
-  strncpy(c->vendor, "Ivan Leben", sizeof(c->vendor));
-  strncpy(c->renderer, "VulkanVG 0.1.0", sizeof(c->renderer));
+  strncpy(c->vendor, "John doe", sizeof(c->vendor));
+  strncpy(c->renderer, "VulcanoVG 0.1.0", sizeof(c->renderer));
   strncpy(c->version, "1.0", sizeof(c->version));
   strncpy(c->extensions, "", sizeof(c->extensions));
   
