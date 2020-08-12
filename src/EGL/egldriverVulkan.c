@@ -474,41 +474,13 @@ static _EGLDevice* _getPrimaryDevice(_EGLDisplay* disp)
    return NULL;
 }
 
-
-typedef struct {
-   _EGLSurface   base;
-   VkFramebuffer frameBuffer;
-   VkRenderPass renderPass;
-} VuSurface;
-
-_EGLSurface* _createPbufferFromClientBuffer(
-   _EGLDriver *drv,
-   _EGLDisplay *disp,
-   EGLenum buftype,
-   EGLClientBuffer buffer,
-   _EGLConfig *config,
-   const EGLint *attrib_list
+VkRenderPass _createRenderPass(
+   VkDevice      device
 ){
-   VuSurface* vuSurf = malloc(sizeof(VuSurface));
 
-   if(buftype != EGL_OPENVG_IMAGE);
-      goto cleanup;
-
-   if(!buffer || !((SHImage*)buffer)->vkImageView)
-      goto cleanup;
-
-   if(!_eglInitSurface(&vuSurf->base, disp, EGL_PBUFFER_BIT, config, attrib_list, NULL))
-      goto cleanup;
-
-   _EGLDevice* dev = _getPrimaryDevice(disp);
-
-   if(dev == NULL || dev->vk.device == NULL)
-      goto cleanup;
-
-   SHImage* image = (SHImage*)buffer;
-
-   vuSurf->base.Width  = image->width;
-   vuSurf->base.Height = image->height; 
+   VkRenderPass renderPass;
+   if(!device)
+      return NULL;
 
    // Create render pass
    {
@@ -547,35 +519,132 @@ _EGLSurface* _createPbufferFromClientBuffer(
          .pSubpasses = subpassDescs,
       };
 
-      if(vkCreateRenderPass(dev->vk.device, &rpInfo, NULL, &vuSurf->renderPass) != VK_SUCCESS)
-         goto cleanup;
+      if(vkCreateRenderPass(device, &rpInfo, NULL, &renderPass) != VK_SUCCESS)
+         return NULL;
    }
+
+   return renderPass;
+}
+
+VkFramebuffer _createFrameBuffer(
+   VkDevice      device, 
+   VkRenderPass  renderPass,
+   VkImageView   vkImageView,
+   uint32_t      width,
+   uint32_t      height
+){
+
+   VkFramebuffer frameBuffer;
+
+   if(!device || !renderPass || !vkImageView)
+      return NULL;
 
    // Create frame buffer
    {
       VkImageView fbAttachments[1];
-      fbAttachments[0] = image->vkImageView;
+      fbAttachments[0] = vkImageView;
 
       VkFramebufferCreateInfo fbInfo = {
          .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
          .pNext = NULL,
          .flags = 0,
-         .renderPass = vuSurf->renderPass,
+         .renderPass = renderPass,
          .attachmentCount = 1,
          .pAttachments = fbAttachments,
-         .width = image->width,
-         .height = image->height,
+         .width  = width,
+         .height = height,
          .layers = 1,
       };
-      if(vkCreateFramebuffer(dev->vk.device, &fbInfo, NULL, &vuSurf->frameBuffer) != VK_SUCCESS)
-         goto cleanup;
+      if(vkCreateFramebuffer(device, &fbInfo, NULL, &frameBuffer) != VK_SUCCESS)
+         return NULL;
    }
 
-   return &vuSurf->base;
+   return frameBuffer;
+}
+
+
+typedef struct {
+   _EGLSurface   base;
+   VkFramebuffer frameBuffer;
+   VkRenderPass  renderPass;
+} VuSurface;
+
+static EGLBoolean _vuInitSurface(
+   VuSurface* vuSurf,
+   VkDevice   device,
+   VkImage    vkImageView,
+   uint32_t   width,
+   uint32_t   height
+){
+   if(!vuSurf || !device || !vkImageView)
+	   return EGL_FALSE;
+
+   vuSurf->renderPass  = _createRenderPass(device);
+   vuSurf->frameBuffer = _createFrameBuffer(device, vuSurf->renderPass, vkImageView, width, height);
+
+   return EGL_TRUE;
+}
+
+static _EGLSurface*
+createWindowSurface(
+   _EGLDriver   *drv,
+   _EGLDisplay  *disp,
+   _EGLConfig   *conf,
+   void         *native_window,
+   const EGLint *attrib_list
+){
+   _EGLDevice  *dev    = _getPrimaryDevice(disp);
+   VuSurface   *vuSurf = malloc(sizeof(VuSurface));
+   _EGLSurface *surf = &vuSurf->base;
+
+   if(!_eglInitSurface(surf, disp, EGL_WINDOW_BIT, conf, attrib_list, native_window))
+      goto cleanup;
+
+   // TODO: Get vkImageView,width,height from native_window
+   SHImage *image  = (SHImage*)native_window;
+   surf->Width  = image->width;
+   surf->Height = image->height; 
+
+   if(!_vuInitSurface(vuSurf, dev->vk.device, image->vkImageView, image->width, image->height))
+      goto cleanup;
+
+   return surf;
 
 cleanup:
    free(vuSurf);
-   return EGL_NO_SURFACE;
+   return NULL;
+}
+
+_EGLSurface* _createPbufferFromClientBuffer(
+   _EGLDriver *drv,
+   _EGLDisplay *disp,
+   EGLenum buftype,
+   EGLClientBuffer buffer,
+   _EGLConfig *conf,
+   const EGLint *attrib_list
+){
+   _EGLDevice  *dev    = _getPrimaryDevice(disp);
+   VuSurface   *vuSurf = malloc(sizeof(VuSurface));
+   _EGLSurface *surf = &vuSurf->base;
+
+   if(buftype != EGL_OPENVG_IMAGE);
+      goto cleanup;
+
+   if(!_eglInitSurface(surf, disp, EGL_PBUFFER_BIT, conf, attrib_list, NULL))
+      goto cleanup;
+
+   SHImage *image  = (SHImage*)buffer;
+   surf->Width  = image->width;
+   surf->Height = image->height; 
+
+   if(!_vuInitSurface(vuSurf, dev->vk.device, image->vkImageView, image->width, image->height))
+      goto cleanup;
+
+   return surf;
+
+cleanup:
+   free(vuSurf);
+   return NULL;
 }
 
 EGLBoolean _prepareRendering(
@@ -682,7 +751,7 @@ _EGLDriver _eglDriver = {
    .CreateContext                 = _CreateContext,
    .DestroyContext                = NULL,
    .MakeCurrent                   = _makeCurrent,
-   .CreateWindowSurface           = NULL,
+   .CreateWindowSurface           = createWindowSurface,
    .CreatePixmapSurface           = NULL,
    .CreatePbufferSurface          = NULL,
    .CreatePbufferFromClientBuffer = _createPbufferFromClientBuffer,

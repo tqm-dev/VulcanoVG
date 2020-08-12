@@ -76,7 +76,7 @@ int main(int argc, char **argv)
 	printf("vcNativeCreateWindow(): [%ld] \r\n", win);
 
 	surf = eglCreateWindowSurface(dpy, config, win, NULL);
-	printf("eglCreatePbufferFromClientBuffer(): [%p] \r\n", surf);
+	printf("eglCreateWindowSurface(): [%p] \r\n", surf);
 #endif
 	ret = eglMakeCurrent(dpy, surf, surf, ctx);
 	printf("eglMakeCurrent(): [%d] \r\n", ret);
