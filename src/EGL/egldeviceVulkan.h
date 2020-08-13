@@ -15,14 +15,14 @@ extern "C" {
 #define MAX_QUEUE_FAMILY 10
 typedef struct 
 {
-   VkPhysicalDevice                 physical_device;
+   VkPhysicalDevice                 device;
    VkPhysicalDeviceProperties       properties;
    VkPhysicalDeviceFeatures         features;
    VkPhysicalDeviceMemoryProperties memories;
    VkQueueFamilyProperties          queue_families[MAX_QUEUE_FAMILY];
    uint32_t                         queue_family_count;
    bool                             queue_families_incomplete;
-} PhysicalDevice;
+} VCPhysical;
 
 typedef struct
 {
@@ -38,7 +38,7 @@ typedef struct {
    VkDevice         device;
    QueueFamily*     queue_families;
    uint32_t         command_pool_count;
-} LogicalDevice;
+} VCLogical;
 
 #ifdef __cplusplus
 }

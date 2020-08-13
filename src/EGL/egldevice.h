@@ -30,7 +30,7 @@ _eglLookupDevice(EGLDeviceEXT device)
 }
 
 _EGLDevice *
-_eglAddDevice(void* device, bool software);
+_eglAddVulkanDevice(VCLogical* logical, VCPhysical* physical);
 
 enum _egl_device_extension {
    _EGL_DEVICE_SOFTWARE,
@@ -47,7 +47,8 @@ struct _egl_device {
    EGLBoolean EXT_device_drm;
    EGLBoolean EXT_device_vulkan_logical;
 
-   LogicalDevice vk;
+   VCLogical  logical;
+   VCPhysical physical;
 };
 
 typedef enum _egl_device_extension _EGLDeviceExtension;

@@ -1871,17 +1871,3 @@ eglGetProcAddress(const char *procname)
    RETURN_EGL_SUCCESS(NULL, ret);
 }
 
-
-EGLNativeWindowType
-vcNativeCreateWindow(uint32_t width, uint32_t height, uint8_t format)
-{
-   assert(sizeof(EGLNativeWindowType) == sizeof(void*));
-   return (EGLNativeWindowType)NULL;
-}
-
-EGLBoolean
-vcNativeDestroyWindow(EGLNativeWindowType window)
-{
-   return EGL_FALSE;
-}
-

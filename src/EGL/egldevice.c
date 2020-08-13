@@ -51,82 +51,46 @@ _eglCheckDeviceHandle(EGLDeviceEXT device)
 
 // This is a dummy device that is set by default
 _EGLDevice _eglSoftwareDevice = {
+   .Next = NULL,
    .extensions = "EGL_MESA_device_software",
    .MESA_device_software = EGL_TRUE,
    .EXT_device_drm = EGL_FALSE,
    .EXT_device_vulkan_logical = EGL_FALSE,
 };
 
-/*
- * Negative value on error, zero if newly added, one if already in list.
- */
-static int
-_eglAddVulkanDevice(void* device, _EGLDevice **out_dev)
-{
-   _EGLDevice *dev;
-   LogicalDevice *logicalDevice = (LogicalDevice*)device;
-
-   assert(logicalDevice);
-   dev = _eglGlobal.DeviceList;
-
-   /* The first device is always software */
-   assert(dev);
-   assert(_eglDeviceSupports(dev, _EGL_DEVICE_SOFTWARE));
-
-   while (dev->Next) {
-      dev = dev->Next;
-
-      assert(_eglDeviceSupports(dev, _EGL_DEVICE_VULKAN_LOGICAL));
-      if (logicalDevice->device != dev->vk.device) {
-         if (out_dev)
-            *out_dev = dev;
-         return 1;
-      }
-   }
-
-   dev->Next = calloc(1, sizeof(_EGLDevice));
-   if (!dev->Next) {
-      if (out_dev)
-         *out_dev = NULL;
-      return -1;
-   }
-
-   dev = dev->Next;
-   dev->extensions = "EXT_device_vulkan_logical";
-   dev->EXT_device_vulkan_logical = EGL_TRUE;
-   dev->EXT_device_drm = EGL_FALSE;
-   dev->MESA_device_software = EGL_FALSE;
-   dev->vk = *logicalDevice;
-
-   if (out_dev)
-      *out_dev = dev;
-
-   return 0;
-}
-
 /* Adds a device in DeviceList, if needed for the given fd.
  *
  * If a software device, the fd is ignored.
  */
 _EGLDevice *
-_eglAddDevice(void* device, bool software)
+_eglAddVulkanDevice(VCLogical* logical, VCPhysical* physical)
 {
-   _EGLDevice *dev;
-
    mtx_lock(_eglGlobal.Mutex);
-   dev = _eglGlobal.DeviceList;
 
    /* The first device is always software */
-   assert(dev);
+   _EGLDevice *dev = _eglGlobal.DeviceList;
    assert(_eglDeviceSupports(dev, _EGL_DEVICE_SOFTWARE));
-   if (software)
-      goto out;
+   
+   while (dev->Next) {
+      dev = dev->Next;
+      assert(_eglDeviceSupports(dev, _EGL_DEVICE_VULKAN_LOGICAL));
+   }
+   
+   dev->Next = calloc(1, sizeof(_EGLDevice));
+   dev = dev->Next;
+   dev->Next = NULL;
+   dev->extensions = "EXT_device_vulkan_logical";
+   dev->EXT_device_vulkan_logical = EGL_TRUE;
+   dev->EXT_device_drm = EGL_FALSE;
+   dev->MESA_device_software = EGL_FALSE;
+   dev->logical = *logical;
+   dev->physical = *physical;
 
-   /* Device is not added - error or already present */
-   _eglAddVulkanDevice(device, &dev);
+   // return to top
+   dev = _eglGlobal.DeviceList;
 
-out:
    mtx_unlock(_eglGlobal.Mutex);
+
    return dev;
 }
 

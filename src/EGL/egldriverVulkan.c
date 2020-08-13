@@ -79,7 +79,7 @@ _getInstance(
 static void
 _enumeratePhysicalDevices(
    VkInstance      vk,   // in
-   PhysicalDevice* devs, // out
+   VCPhysical* devs, // out
    uint32_t*       count // out
 ){
    // If Performance_query does not work on your GPUs, 
@@ -93,23 +93,23 @@ _enumeratePhysicalDevices(
    for (uint32_t i = 0; i < *count; ++i)
    {
       uint32_t qfc = 0;
-      devs[i].physical_device = phy_devs[i];
+      devs[i].device = phy_devs[i];
       
-      vkGetPhysicalDeviceProperties(devs[i].physical_device, &devs[i].properties);
-      vkGetPhysicalDeviceFeatures(devs[i].physical_device, &devs[i].features);
-      vkGetPhysicalDeviceMemoryProperties(devs[i].physical_device, &devs[i].memories);
+      vkGetPhysicalDeviceProperties(devs[i].device, &devs[i].properties);
+      vkGetPhysicalDeviceFeatures(devs[i].device, &devs[i].features);
+      vkGetPhysicalDeviceMemoryProperties(devs[i].device, &devs[i].memories);
       
       devs[i].queue_family_count = MAX_QUEUE_FAMILY;
-      vkGetPhysicalDeviceQueueFamilyProperties(devs[i].physical_device, &qfc, NULL);
-      vkGetPhysicalDeviceQueueFamilyProperties(devs[i].physical_device, &devs[i].queue_family_count, devs[i].queue_families);
+      vkGetPhysicalDeviceQueueFamilyProperties(devs[i].device, &qfc, NULL);
+      vkGetPhysicalDeviceQueueFamilyProperties(devs[i].device, &devs[i].queue_family_count, devs[i].queue_families);
       
       devs[i].queue_families_incomplete = devs[i].queue_family_count < qfc;
    }
 }
 
 static int _createLogicalDevice(
-   PhysicalDevice*         phy_dev,
-   LogicalDevice*          dev,
+   VCPhysical*         phy_dev,
+   VCLogical*          dev,
    VkQueueFlags            qflags,
    VkDeviceQueueCreateInfo queue_info[],
    uint32_t*               queue_family_count, // in/out  This will be edited by checking qflags
@@ -120,7 +120,7 @@ static int _createLogicalDevice(
    VkResult res;
    
    /* Here is to hoping we don't have to redo this function again ;) */
-   *dev = (LogicalDevice){0};
+   *dev = (VCLogical){0};
    
    /* We have already seen how to create a logical device and request queues in Tutorial 2 and again in 5 */
    uint32_t max_queue_count = *queue_family_count;
@@ -164,7 +164,7 @@ static int _createLogicalDevice(
    dev_info.ppEnabledExtensionNames = ext_names;
    dev_info.pEnabledFeatures = &phy_dev->features;
    
-   vkCreateDevice(phy_dev->physical_device, &dev_info, NULL, &dev->device);
+   vkCreateDevice(phy_dev->device, &dev_info, NULL, &dev->device);
    
 exit_failed:
    return retval;
@@ -173,8 +173,8 @@ exit_failed:
 
 int 
 _createCommandBuffers(
-   PhysicalDevice *        phy_dev,
-   LogicalDevice *         dev,
+   VCPhysical *        phy_dev,
+   VCLogical *         dev,
    VkDeviceQueueCreateInfo queue_info[],
    uint32_t                queue_family_count,
    uint8_t                 buffer_num_per_queue
@@ -241,8 +241,8 @@ exit_failed:
 
 static void
 _setupLogicalDevices(
-   PhysicalDevice* phyDevList, // in
-   LogicalDevice*  logDevList, // out
+   VCPhysical* phyDevList, // in
+   VCLogical*  logDevList, // out
    uint32_t        deviceCount // in
 ){
    const char *extension_names[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
@@ -250,8 +250,8 @@ _setupLogicalDevices(
 
    for (uint32_t i = 0; i < deviceCount; ++i) {
 
-      PhysicalDevice *phy_dev = &phyDevList[i];
-      LogicalDevice  *dev = &logDevList[i];
+      VCPhysical *phy_dev = &phyDevList[i];
+      VCLogical  *dev = &logDevList[i];
       VkDeviceQueueCreateInfo queue_info[phy_dev->queue_family_count];
       uint32_t queue_family_count = phy_dev->queue_family_count;
 
@@ -271,15 +271,16 @@ _setupLogicalDevices(
    
 static void
 _addLogicalDevices(
-   LogicalDevice* logDevList, // in
+   VCPhysical*    phyDevList, // in
+   VCLogical*     logDevList, // in
    uint32_t       deviceCount,// in
    _EGLDisplay*   disp        // out
 ){
    _EGLDevice *top = NULL;
 
-   // Add _EGLDevice containing the LogicalDevice to the list in _eglGlobal.
+   // Add _EGLDevice containing the VCLogical to the list in _eglGlobal.
    for(uint32_t i = 0; i < deviceCount; i++){
-      top = _eglAddDevice((void*)&logDevList[i], false); // Always returns a top of the list of _EGLDevice.
+      top = _eglAddVulkanDevice((void*)&logDevList[i], (void*)&phyDevList[i]); // Always returns a top of the list of _EGLDevice.
       if (!top)
          break;
    }
@@ -335,8 +336,8 @@ _Initialize(
    _EGLDisplay *disp
 ){
    VkInstance instance;
-   PhysicalDevice phyDevList[VULKAN_DEVICE_MAX] = {0};
-   LogicalDevice  logDevList[VULKAN_DEVICE_MAX] = {0};
+   VCPhysical phyDevList[VULKAN_DEVICE_MAX] = {0};
+   VCLogical  logDevList[VULKAN_DEVICE_MAX] = {0};
    uint32_t countDev;
   
    /* Get instance */
@@ -351,8 +352,8 @@ _Initialize(
    /* Setup logical devices and command buffers*/
    _setupLogicalDevices(phyDevList, logDevList, countDev);
 
-   /* Add logical devices to _EGLDevice*/
-  _addLogicalDevices(logDevList, countDev, disp);
+   /* Add devices to _EGLDevice*/
+  _addLogicalDevices(phyDevList, logDevList, countDev, disp);
 
    /* Create default configs */
   _setupDefaultConfigs(disp);
@@ -577,10 +578,68 @@ static EGLBoolean _vuInitSurface(
    uint32_t   height
 ){
    if(!vuSurf || !device || !vkImageView)
-	   return EGL_FALSE;
+      return EGL_FALSE;
 
-   vuSurf->renderPass  = _createRenderPass(device);
-   vuSurf->frameBuffer = _createFrameBuffer(device, vuSurf->renderPass, vkImageView, width, height);
+   // Render pass
+   {
+      // Subpass descriptions
+      VkAttachmentReference colorAttachmentRef = {
+         .attachment = 0, /* corresponds to the index in pAttachments of VkRenderPassCreateInfo */
+         .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+      };
+      VkSubpassDescription graphicsSubpassDesc = {
+         .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+         .colorAttachmentCount = 1,
+         .pColorAttachments = &colorAttachmentRef,
+         .pDepthStencilAttachment = NULL,
+      };
+      VkSubpassDescription subpassDescs[1] = {
+         graphicsSubpassDesc
+      };
+   
+      // Attachment descriptions
+      VkAttachmentDescription colorAttachmentDesc = {
+         .format = VK_FORMAT_R8G8B8A8_SRGB,
+         .samples = VK_SAMPLE_COUNT_1_BIT,
+         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+         .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+         .initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+         .finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+      };
+      VkAttachmentDescription attachmentDesc[1] = {
+         colorAttachmentDesc
+      };
+      VkRenderPassCreateInfo rpInfo = {
+         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+         .attachmentCount = 1,
+         .pAttachments = attachmentDesc,
+         .subpassCount = 1,
+         .pSubpasses = subpassDescs,
+      };
+   
+      if(vkCreateRenderPass(device, &rpInfo, NULL, &vuSurf->renderPass) != VK_SUCCESS)
+         return EGL_FALSE;
+   }
+
+   // Frame buffer
+   {
+      VkImageView fbAttachments[1];
+      fbAttachments[0] = vkImageView;
+
+      VkFramebufferCreateInfo fbInfo = {
+         .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+         .pNext = NULL,
+         .flags = 0,
+         .renderPass = vuSurf->renderPass,
+         .attachmentCount = 1,
+         .pAttachments = fbAttachments,
+         .width  = width,
+         .height = height,
+         .layers = 1,
+      };
+      if(vkCreateFramebuffer(device, &fbInfo, NULL, &vuSurf->frameBuffer) != VK_SUCCESS)
+         return EGL_FALSE;
+   }
 
    return EGL_TRUE;
 }
@@ -605,7 +664,7 @@ createWindowSurface(
    surf->Width  = image->width;
    surf->Height = image->height; 
 
-   if(!_vuInitSurface(vuSurf, dev->vk.device, image->vkImageView, image->width, image->height))
+   if(!_vuInitSurface(vuSurf, dev->logical.device, image->vkImageView, image->width, image->height))
       goto cleanup;
 
    return surf;
@@ -637,7 +696,7 @@ _EGLSurface* _createPbufferFromClientBuffer(
    surf->Width  = image->width;
    surf->Height = image->height; 
 
-   if(!_vuInitSurface(vuSurf, dev->vk.device, image->vkImageView, image->width, image->height))
+   if(!_vuInitSurface(vuSurf, dev->logical.device, image->vkImageView, image->width, image->height))
       goto cleanup;
 
    return surf;
@@ -731,7 +790,7 @@ _makeCurrent(
    _EGLDevice* dev = _getPrimaryDevice(disp);
 
    // Queue family must be a graphics queue family
-   QueueFamily queueFamily = dev->vk.queue_families[0];
+   QueueFamily queueFamily = dev->logical.queue_families[0];
    assert(queueFamily.qflags & VK_QUEUE_GRAPHICS_BIT);
 
    // Select command buffer to prepare rendering
@@ -743,6 +802,134 @@ _makeCurrent(
       return EGL_FALSE;
 
    return EGL_TRUE;
+}
+
+
+#define MAX_PRESENT_MODES 4
+typedef struct
+{
+	VkSurfaceKHR surface;
+	VkSwapchainKHR swapchain;
+	VkSurfaceFormatKHR surface_format;
+	VkSurfaceCapabilitiesKHR surface_caps;
+	VkPresentModeKHR present_modes[MAX_PRESENT_MODES];
+	uint32_t present_modes_count;
+} VCSwapchain;
+
+typedef struct{
+   VkImage     *images;
+   uint32_t    image_count;
+   uint32_t    width;
+   uint32_t    height;
+   VCSwapchain swapchain;
+} VCNativeWindow;
+
+EGLNativeWindowType
+vcNativeCreateWindow(EGLDisplay dpy, uint32_t width, uint32_t height)
+{
+   _EGLDisplay *disp = _eglLockDisplay(dpy);
+   //TODO: Thread safe
+
+   VCNativeWindow *nativeWin = (VCNativeWindow*)malloc(sizeof(VCNativeWindow));
+   VCSwapchain    *swapchain = &nativeWin->swapchain;
+   _EGLDevice     *dev       = _getPrimaryDevice(disp);
+
+   // Init SDL
+   SDL_Init(SDL_INIT_VIDEO);
+   char title[50];
+   snprintf(title, sizeof(title), "Vk on device\n");
+   SDL_Window window = SDL_CreateWindow(title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, 0);
+
+   // Create surface from SDL info
+   SDL_SysWMinfo wm;
+   SDL_VERSION(&wm.version);
+   SDL_GetWindowWMInfo(window, &wm);
+   assert(wm.subsystem == SDL_SYSWM_X11);
+   VkXcbSurfaceCreateInfoKHR surface_info = {
+      .sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR,
+      .connection = XGetXCBConnection(wm.info.x11.display),
+      .window = wm.info.x11.window,
+   };
+   vkCreateXcbSurfaceKHR((VkInstance)disp->PlatformDisplay, &surface_info, NULL, &swapchain->surface);
+
+   // Surface format
+   uint32_t surface_format_count = 1;
+   vkGetPhysicalDeviceSurfaceFormatsKHR(dev->physical.device, swapchain->surface, &surface_format_count, &swapchain->surface_format);
+   if (surface_format_count == 1 && swapchain->surface_format.format == VK_FORMAT_UNDEFINED)
+      swapchain->surface_format.format = VK_FORMAT_R8G8B8_UNORM;
+
+   // Present mode
+   VkPresentModeKHR present_mode = VK_PRESENT_MODE_FIFO_KHR;
+   swapchain->present_modes_count = MAX_PRESENT_MODES;
+   VkResult res;
+   bool allow_no_vsync = false;
+   res = vkGetPhysicalDeviceSurfacePresentModesKHR(dev->physical.device, swapchain->surface,
+          &swapchain->present_modes_count, swapchain->present_modes);
+   if (res >= 0) {
+      for (uint32_t i = 0; i < swapchain->present_modes_count; ++i){
+         if (allow_no_vsync && swapchain->present_modes[i] == VK_PRESENT_MODE_IMMEDIATE_KHR){
+            present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+            break;
+         }
+         if (!allow_no_vsync && swapchain->present_modes[i] == VK_PRESENT_MODE_MAILBOX_KHR){
+            present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
+            break;
+         }
+      }
+   }
+
+   // Swapchain image count
+   vkGetPhysicalDeviceSurfaceCapabilitiesKHR(dev->physical.device, swapchain->surface, &swapchain->surface_caps);
+   uint8_t  thread_count = 1;
+   uint32_t min_image_count = swapchain->surface_caps.minImageCount + thread_count - 1;
+   if (swapchain->surface_caps.maxImageCount < min_image_count && swapchain->surface_caps.maxImageCount != 0)
+      min_image_count = swapchain->surface_caps.maxImageCount;
+
+   // Create swapchain
+   VkSwapchainCreateInfoKHR swapchain_info = {
+      .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+      .surface = swapchain->surface,
+      .minImageCount = min_image_count,
+      .imageFormat = swapchain->surface_format.format,
+      .imageColorSpace = swapchain->surface_format.colorSpace,
+      .imageExtent = swapchain->surface_caps.currentExtent.width == 0xFFFFFFFF ?
+                        swapchain->surface_caps.minImageExtent :
+                        swapchain->surface_caps.currentExtent,
+      .imageArrayLayers = 1,
+      .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+      .preTransform = swapchain->surface_caps.currentTransform,
+      .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+      .presentMode = present_mode,
+      .clipped = true,
+   };
+   if(vkCreateSwapchainKHR(dev->logical.device, &swapchain_info, NULL, &swapchain->swapchain) != VK_SUCCESS)
+      goto cleanup;
+
+   // Query image num in the swapchain
+   vkGetSwapchainImagesKHR(dev->logical.device, swapchain->swapchain, &nativeWin->image_count, NULL);
+
+   // Get images in the swapcain
+   nativeWin->images = malloc(nativeWin->image_count * sizeof(VkImage));
+   if(vkGetSwapchainImagesKHR(dev->logical.device, swapchain->swapchain, &nativeWin->image_count, nativeWin->images) != VK_SUCCESS){
+      free(nativeWin->images);
+      goto cleanup;
+   }
+
+   nativeWin->width  = width;
+   nativeWin->height = height;
+
+   assert(sizeof(EGLNativeWindowType) == sizeof(void*));
+   return (EGLNativeWindowType)nativeWin;
+
+cleanup:
+   free(nativeWin);
+   return (EGLNativeWindowType)NULL;
+}
+
+EGLBoolean
+vcNativeDestroyWindow(EGLNativeWindowType window)
+{
+   return EGL_FALSE;
 }
 
 _EGLDriver _eglDriver = {

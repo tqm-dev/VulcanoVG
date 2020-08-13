@@ -72,7 +72,7 @@ int main(int argc, char **argv)
 	surf = eglCreatePbufferFromClientBuffer(dpy, EGL_OPENVG_IMAGE, (EGLClientBuffer)image, config, NULL);
 	printf("eglCreatePbufferFromClientBuffer(): [%p] \r\n", surf);
 #else
-	win = vcNativeCreateWindow(SURF_WIDTH, SURF_HEIGHT, VC_FORMAT_R8G8B8A8_SRGB);
+	win = vcNativeCreateWindow(dpy, SURF_WIDTH, SURF_HEIGHT);
 	printf("vcNativeCreateWindow(): [%ld] \r\n", win);
 
 	surf = eglCreateWindowSurface(dpy, config, win, NULL);
