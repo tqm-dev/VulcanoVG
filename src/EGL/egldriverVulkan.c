@@ -565,19 +565,25 @@ VkFramebuffer _createFrameBuffer(
 
 
 typedef struct {
-   _EGLSurface   base;
    VkFramebuffer frameBuffer;
    VkRenderPass  renderPass;
+} VCFrameBuffer;
+
+typedef struct {
+   _EGLSurface   base;
+   VCFrameBuffer *frameBuffers;
+   uint8_t       frameBufferCount;
+   uint8_t       currentFrameIndex;
 } VuSurface;
 
-static EGLBoolean _vuInitSurface(
-   VuSurface* vuSurf,
-   VkDevice   device,
-   VkImage    vkImageView,
-   uint32_t   width,
-   uint32_t   height
+static EGLBoolean _vcInitFrameBuffer(
+   VCFrameBuffer *vcFrameBuffer,
+   VkDevice      device,
+   VkImageView   vkImageView,
+   uint32_t      width,
+   uint32_t      height
 ){
-   if(!vuSurf || !device || !vkImageView)
+   if(!device || !vkImageView)
       return EGL_FALSE;
 
    // Render pass
@@ -617,7 +623,7 @@ static EGLBoolean _vuInitSurface(
          .pSubpasses = subpassDescs,
       };
    
-      if(vkCreateRenderPass(device, &rpInfo, NULL, &vuSurf->renderPass) != VK_SUCCESS)
+      if(vkCreateRenderPass(device, &rpInfo, NULL, &vcFrameBuffer->renderPass) != VK_SUCCESS)
          return EGL_FALSE;
    }
 
@@ -630,19 +636,39 @@ static EGLBoolean _vuInitSurface(
          .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
          .pNext = NULL,
          .flags = 0,
-         .renderPass = vuSurf->renderPass,
+         .renderPass = vcFrameBuffer->renderPass,
          .attachmentCount = 1,
          .pAttachments = fbAttachments,
          .width  = width,
          .height = height,
          .layers = 1,
       };
-      if(vkCreateFramebuffer(device, &fbInfo, NULL, &vuSurf->frameBuffer) != VK_SUCCESS)
+      if(vkCreateFramebuffer(device, &fbInfo, NULL, &vcFrameBuffer->frameBuffer) != VK_SUCCESS)
          return EGL_FALSE;
    }
 
    return EGL_TRUE;
 }
+
+#define MAX_PRESENT_MODES 4
+typedef struct
+{
+	VkSurfaceKHR surface;
+	VkSwapchainKHR swapchain;
+	VkSurfaceFormatKHR surface_format;
+	VkSurfaceCapabilitiesKHR surface_caps;
+	VkPresentModeKHR present_modes[MAX_PRESENT_MODES];
+	uint32_t present_modes_count;
+} VCSwapchain;
+
+typedef struct{
+   VkImage     *images;
+   VkImageView *imageViews;
+   uint32_t    image_count;
+   uint32_t    width;
+   uint32_t    height;
+   VCSwapchain swapchain;
+} VCNativeWindow;
 
 static _EGLSurface*
 createWindowSurface(
@@ -654,22 +680,26 @@ createWindowSurface(
 ){
    _EGLDevice  *dev    = _getPrimaryDevice(disp);
    VuSurface   *vuSurf = malloc(sizeof(VuSurface));
-   _EGLSurface *surf = &vuSurf->base;
+   VCNativeWindow *win  = (VCNativeWindow*)native_window;
+   VCFrameBuffer  *frameBuffers = (VCFrameBuffer*)malloc(win->image_count * sizeof(VCFrameBuffer));
 
-   if(!_eglInitSurface(surf, disp, EGL_WINDOW_BIT, conf, attrib_list, native_window))
+   if(!_eglInitSurface(&vuSurf->base, disp, EGL_WINDOW_BIT, conf, attrib_list, native_window))
       goto cleanup;
+   vuSurf->base.Width  = win->width;
+   vuSurf->base.Height = win->height;
 
-   // TODO: Get vkImageView,width,height from native_window
-   SHImage *image  = (SHImage*)native_window;
-   surf->Width  = image->width;
-   surf->Height = image->height; 
+   for(uint8_t i = 0; i < win->image_count; i++){
+      if(_vcInitFrameBuffer(&frameBuffers[i], dev->logical.device, win->imageViews[i], win->width, win->height))
+         goto cleanup;
+   }
+   vuSurf->frameBuffers = frameBuffers;
+   vuSurf->frameBufferCount = win->image_count;
+   vuSurf->currentFrameIndex = 0;
 
-   if(!_vuInitSurface(vuSurf, dev->logical.device, image->vkImageView, image->width, image->height))
-      goto cleanup;
-
-   return surf;
+   return &vuSurf->base;
 
 cleanup:
+   free(frameBuffers);
    free(vuSurf);
    return NULL;
 }
@@ -682,26 +712,29 @@ _EGLSurface* _createPbufferFromClientBuffer(
    _EGLConfig *conf,
    const EGLint *attrib_list
 ){
-   _EGLDevice  *dev    = _getPrimaryDevice(disp);
-   VuSurface   *vuSurf = malloc(sizeof(VuSurface));
-   _EGLSurface *surf = &vuSurf->base;
+   _EGLDevice    *dev    = _getPrimaryDevice(disp);
+   VuSurface     *vuSurf = malloc(sizeof(VuSurface));
+   VCFrameBuffer *frameBuffer = (VCFrameBuffer*)malloc(sizeof(VCFrameBuffer));
+   SHImage       *image  = (SHImage*)buffer;
 
    if(buftype != EGL_OPENVG_IMAGE);
       goto cleanup;
 
-   if(!_eglInitSurface(surf, disp, EGL_PBUFFER_BIT, conf, attrib_list, NULL))
+   if(!_eglInitSurface(&vuSurf->base, disp, EGL_PBUFFER_BIT, conf, attrib_list, NULL))
       goto cleanup;
+   vuSurf->base.Width  = image->width;
+   vuSurf->base.Height = image->height; 
 
-   SHImage *image  = (SHImage*)buffer;
-   surf->Width  = image->width;
-   surf->Height = image->height; 
-
-   if(!_vuInitSurface(vuSurf, dev->logical.device, image->vkImageView, image->width, image->height))
+   if(!_vcInitFrameBuffer(frameBuffer, dev->logical.device, image->vkImageView, image->width, image->height))
       goto cleanup;
+   vuSurf->frameBuffers = frameBuffer;
+   vuSurf->frameBufferCount = 1;
+   vuSurf->currentFrameIndex = 0;
 
-   return surf;
+   return &vuSurf->base;
 
 cleanup:
+   free(frameBuffer);
    free(vuSurf);
    return NULL;
 }
@@ -727,8 +760,8 @@ EGLBoolean _prepareRendering(
    };
    VkRenderPassBeginInfo pass_info = {
       .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-      .renderPass  = vuSurf->renderPass,
-      .framebuffer = vuSurf->frameBuffer,
+      .renderPass  = vuSurf->frameBuffers[vuSurf->currentFrameIndex].renderPass,
+      .framebuffer = vuSurf->frameBuffers[vuSurf->currentFrameIndex].frameBuffer,
       .renderArea  = {
              .offset = { .x = 0,
                          .y = 0, },
@@ -803,26 +836,6 @@ _makeCurrent(
 
    return EGL_TRUE;
 }
-
-
-#define MAX_PRESENT_MODES 4
-typedef struct
-{
-	VkSurfaceKHR surface;
-	VkSwapchainKHR swapchain;
-	VkSurfaceFormatKHR surface_format;
-	VkSurfaceCapabilitiesKHR surface_caps;
-	VkPresentModeKHR present_modes[MAX_PRESENT_MODES];
-	uint32_t present_modes_count;
-} VCSwapchain;
-
-typedef struct{
-   VkImage     *images;
-   uint32_t    image_count;
-   uint32_t    width;
-   uint32_t    height;
-   VCSwapchain swapchain;
-} VCNativeWindow;
 
 EGLNativeWindowType
 vcNativeCreateWindowFromSDL(EGLDisplay dpy, SDL_Window window)
