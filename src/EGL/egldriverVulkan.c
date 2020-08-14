@@ -839,6 +839,9 @@ vcNativeCreateWindowFromSDL(EGLDisplay dpy, SDL_Window window)
    SDL_VERSION(&wm.version);
    SDL_GetWindowWMInfo(window, &wm);
 
+   // window size
+   SDL_GetWindowSize(window, (int*)&nativeWin->width, (int*)&nativeWin->height)
+
    // Create surface
    VkSurfaceKHR surface;
    switch(wm.subsystem){
@@ -917,9 +920,6 @@ vcNativeCreateWindowFromSDL(EGLDisplay dpy, SDL_Window window)
       free(nativeWin->images);
       goto cleanup;
    }
-
-   nativeWin->width  = width;
-   nativeWin->height = height;
 
    assert(sizeof(EGLNativeWindowType) == sizeof(void*));
    return (EGLNativeWindowType)nativeWin;
