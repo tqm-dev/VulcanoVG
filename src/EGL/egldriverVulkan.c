@@ -571,9 +571,7 @@ typedef struct {
 
 typedef struct {
    _EGLSurface   base;
-   VCFrameBuffer *frameBuffers;
-   uint8_t       frameBufferCount;
-   uint8_t       currentFrameIndex;
+   VCFrameBuffer *frameBuffer;
 } VuSurface;
 
 static EGLBoolean _vcInitFrameBuffer(
@@ -664,10 +662,11 @@ typedef struct
 typedef struct{
    VkImage     *images;
    VkImageView *imageViews;
-   uint32_t    image_count;
-   uint32_t    width;
-   uint32_t    height;
-   VCSwapchain swapchain;
+   uint32_t     image_count;
+   uint32_t     current_image_index;
+   uint32_t     width;
+   uint32_t     height;
+   VCSwapchain  swapchain;
 } VCNativeWindow;
 
 static _EGLSurface*
@@ -678,28 +677,25 @@ createWindowSurface(
    void         *native_window,
    const EGLint *attrib_list
 ){
-   _EGLDevice  *dev    = _getPrimaryDevice(disp);
-   VuSurface   *vuSurf = malloc(sizeof(VuSurface));
-   VCNativeWindow *win  = (VCNativeWindow*)native_window;
-   VCFrameBuffer  *frameBuffers = (VCFrameBuffer*)malloc(win->image_count * sizeof(VCFrameBuffer));
+   _EGLDevice     *dev    = _getPrimaryDevice(disp);
+   VuSurface      *vuSurf = malloc(sizeof(VuSurface));
+   _EGLSurface    *surf   = &vuSurf->base;
 
-   if(!_eglInitSurface(&vuSurf->base, disp, EGL_WINDOW_BIT, conf, attrib_list, native_window))
+   if(!_eglInitSurface(surf, disp, EGL_WINDOW_BIT, conf, attrib_list, native_window))
       goto cleanup;
-   vuSurf->base.Width  = win->width;
-   vuSurf->base.Height = win->height;
 
-   for(uint8_t i = 0; i < win->image_count; i++){
-      if(_vcInitFrameBuffer(&frameBuffers[i], dev->logical.device, win->imageViews[i], win->width, win->height))
-         goto cleanup;
-   }
-   vuSurf->frameBuffers = frameBuffers;
-   vuSurf->frameBufferCount = win->image_count;
-   vuSurf->currentFrameIndex = 0;
+   VCNativeWindow *vcNativeWin = (VCNativeWindow*)surf->NativeSurface;
+   surf->Width  = vcNativeWin->width;
+   surf->Height = vcNativeWin->height;
 
-   return &vuSurf->base;
+   // Create multiple frame buffers
+   vuSurf->frameBuffer = (VCFrameBuffer*)malloc(vcNativeWin->image_count * sizeof(VCFrameBuffer));
+   for(uint8_t i = 0; i < vcNativeWin->image_count; i++)
+      _vcInitFrameBuffer(&vuSurf->frameBuffer[i], dev->logical.device, vcNativeWin->imageViews[i], vcNativeWin->width, vcNativeWin->height);
+
+   return surf;
 
 cleanup:
-   free(frameBuffers);
    free(vuSurf);
    return NULL;
 }
@@ -714,34 +710,32 @@ _EGLSurface* _createPbufferFromClientBuffer(
 ){
    _EGLDevice    *dev    = _getPrimaryDevice(disp);
    VuSurface     *vuSurf = malloc(sizeof(VuSurface));
-   VCFrameBuffer *frameBuffer = (VCFrameBuffer*)malloc(sizeof(VCFrameBuffer));
+   _EGLSurface   *surf = &vuSurf->base;
    SHImage       *image  = (SHImage*)buffer;
 
    if(buftype != EGL_OPENVG_IMAGE);
       goto cleanup;
 
-   if(!_eglInitSurface(&vuSurf->base, disp, EGL_PBUFFER_BIT, conf, attrib_list, NULL))
+   if(!_eglInitSurface(surf, disp, EGL_PBUFFER_BIT, conf, attrib_list, NULL))
       goto cleanup;
-   vuSurf->base.Width  = image->width;
-   vuSurf->base.Height = image->height; 
+   surf->Width  = image->width;
+   surf->Height = image->height; 
 
-   if(!_vcInitFrameBuffer(frameBuffer, dev->logical.device, image->vkImageView, image->width, image->height))
-      goto cleanup;
-   vuSurf->frameBuffers = frameBuffer;
-   vuSurf->frameBufferCount = 1;
-   vuSurf->currentFrameIndex = 0;
+   // Create single frame buffer
+   vuSurf->frameBuffer = (VCFrameBuffer*)malloc(sizeof(VCFrameBuffer));
+   _vcInitFrameBuffer(vuSurf->frameBuffer, dev->logical.device, image->vkImageView, image->width, image->height);
 
-   return &vuSurf->base;
+   return surf;
 
 cleanup:
-   free(frameBuffer);
    free(vuSurf);
    return NULL;
 }
 
 EGLBoolean _prepareRendering(
    VkCommandBuffer cmdbuf,
-   VuSurface      *vuSurf
+   VuSurface      *vuSurf,
+   uint8_t        frameIndex
 ){
    _EGLSurface* surf = &vuSurf->base;
 
@@ -760,8 +754,8 @@ EGLBoolean _prepareRendering(
    };
    VkRenderPassBeginInfo pass_info = {
       .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-      .renderPass  = vuSurf->frameBuffers[vuSurf->currentFrameIndex].renderPass,
-      .framebuffer = vuSurf->frameBuffers[vuSurf->currentFrameIndex].frameBuffer,
+      .renderPass  = vuSurf->frameBuffer[frameIndex].renderPass,
+      .framebuffer = vuSurf->frameBuffer[frameIndex].frameBuffer,
       .renderArea  = {
              .offset = { .x = 0,
                          .y = 0, },
@@ -831,7 +825,8 @@ _makeCurrent(
    vkResetCommandBuffer(cmdbuf, 0);
 
    // Record commands to prepare rendering
-   if(!_prepareRendering(cmdbuf, vuSurf))
+   VCNativeWindow *vcNativeWin = (VCNativeWindow*)dsurf->NativeSurface;
+   if(!_prepareRendering(cmdbuf, vuSurf, vcNativeWin ? vcNativeWin->current_image_index : 0))
       return EGL_FALSE;
 
    return EGL_TRUE;
@@ -933,6 +928,8 @@ vcNativeCreateWindowFromSDL(EGLDisplay dpy, SDL_Window window)
       free(nativeWin->images);
       goto cleanup;
    }
+
+   nativeWin->current_image_index = 0;
 
    assert(sizeof(EGLNativeWindowType) == sizeof(void*));
    return (EGLNativeWindowType)nativeWin;
