@@ -825,7 +825,7 @@ typedef struct{
 } VCNativeWindow;
 
 EGLNativeWindowType
-vcNativeCreateWindow(EGLDisplay dpy, uint32_t width, uint32_t height)
+vcNativeCreateWindowFromSDL(EGLDisplay dpy, SDL_Window window)
 {
    _EGLDisplay *disp = _eglLockDisplay(dpy);
    //TODO: Thread safe
@@ -834,23 +834,26 @@ vcNativeCreateWindow(EGLDisplay dpy, uint32_t width, uint32_t height)
    VCSwapchain    *swapchain = &nativeWin->swapchain;
    _EGLDevice     *dev       = _getPrimaryDevice(disp);
 
-   // Init SDL
-   SDL_Init(SDL_INIT_VIDEO);
-   char title[50];
-   snprintf(title, sizeof(title), "Vk on device\n");
-   SDL_Window window = SDL_CreateWindow(title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, 0);
-
-   // Create surface from SDL info
+   // SDL info
    SDL_SysWMinfo wm;
    SDL_VERSION(&wm.version);
    SDL_GetWindowWMInfo(window, &wm);
-   assert(wm.subsystem == SDL_SYSWM_X11);
-   VkXcbSurfaceCreateInfoKHR surface_info = {
-      .sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR,
-      .connection = XGetXCBConnection(wm.info.x11.display),
-      .window = wm.info.x11.window,
-   };
-   vkCreateXcbSurfaceKHR((VkInstance)disp->PlatformDisplay, &surface_info, NULL, &swapchain->surface);
+
+   // Create surface
+   VkSurfaceKHR surface;
+   switch(wm.subsystem){
+      case SDL_SYSWM_X11:
+         VkXcbSurfaceCreateInfoKHR surface_info = {
+            .sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR,
+            .connection = XGetXCBConnection(wm.info.x11.display),
+            .window = wm.info.x11.window,
+         };
+         vkCreateXcbSurfaceKHR((VkInstance)disp->PlatformDisplay, &surface_info, NULL, &surface);
+         break;
+      default
+         goto cleanup;
+   }
+   swapchain->surface = surface;
 
    // Surface format
    uint32_t surface_format_count = 1;

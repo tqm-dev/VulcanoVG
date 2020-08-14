@@ -72,7 +72,12 @@ int main(int argc, char **argv)
 	surf = eglCreatePbufferFromClientBuffer(dpy, EGL_OPENVG_IMAGE, (EGLClientBuffer)image, config, NULL);
 	printf("eglCreatePbufferFromClientBuffer(): [%p] \r\n", surf);
 #else
-	win = vcNativeCreateWindow(dpy, SURF_WIDTH, SURF_HEIGHT);
+	// Init SDL
+	SDL_Init(SDL_INIT_VIDEO);
+	char title[50];
+	snprintf(title, sizeof(title), "Vk on device\n");
+	SDL_Window window = SDL_CreateWindow(title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, 0);
+	win = vcNativeCreateWindowFromSDL(dpy, window);
 	printf("vcNativeCreateWindow(): [%ld] \r\n", win);
 
 	surf = eglCreateWindowSurface(dpy, config, win, NULL);
