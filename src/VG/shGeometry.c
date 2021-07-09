@@ -4,6 +4,7 @@
 #include "shContext.h"
 #include "shGeometry.h"
 #include "kvec.h"
+#include <assert.h>
 
 
 static int shAddVertex(SHPath *p, SHVertex *v, SHint *contourStart)
@@ -596,7 +597,6 @@ static void close_path(struct reduced_path *path)
 #define c6 data[8]
 #define set(x1, y1, x2, y2) ncpx = x1; ncpy = y1; npepx = x2; npepy = y2;
 #define last_path &kv_back(*reduced_paths)
-static const int new_path_table[3][3] = {{0, 0, 0}, {1, 0, 0}, {1, 1, 0}};
 static float spx = 0, spy = 0;
 static float cpx = 0, cpy = 0;
 static float pepx = 0, pepy = 0;
@@ -646,6 +646,12 @@ Z -> M yes
 Z -> L yes
 Z -> Z no
 */
+                                       /* Current */
+                                       /* M  L  Z */  /* Prev */
+static const int new_path_table[3][3] = {{0, 0, 0},   /* M    */
+										 {1, 0, 0},   /* L    */
+										 {1, 1, 0}};  /* Z    */
+
 static void shReduceSegment(SHPath *p, VGPathSegment segment,
                                VGPathCommand originalCommand,
                                SHfloat *data, void *userData)
@@ -654,22 +660,12 @@ static void shReduceSegment(SHPath *p, VGPathSegment segment,
 	
 	switch(segment)
 	{
-	case VG_MOVE_TO_ABS:
+	case VG_MOVE_TO:
 		if (new_path_table[prev_command][0])
 			new_path(reduced_paths);
 		prev_command = 0;
 		move_to(last_path, c0, c1);
 		set(c0, c1, c0, c1);
-		spx = ncpx;
-		spy = ncpy;
-		break;
-
-	case VG_MOVE_TO_REL:
-		if (new_path_table[prev_command][0])
-			new_path(reduced_paths);
-		prev_command = 0;
-		move_to(last_path, cpx + c0, cpy + c1);
-		set(cpx + c0, cpy + c1, cpx + c0, cpy + c1);
 		spx = ncpx;
 		spy = ncpy;
 		break;
@@ -682,7 +678,7 @@ static void shReduceSegment(SHPath *p, VGPathSegment segment,
 		set(spx, spy, spx, spy);
 		break;
 
-	case VG_LINE_TO_ABS:
+	case VG_LINE_TO:
 		if (new_path_table[prev_command][1])
 			new_path(reduced_paths);
 		prev_command = 1;
@@ -690,15 +686,7 @@ static void shReduceSegment(SHPath *p, VGPathSegment segment,
 		set(c0, c1, c0, c1);
 		break;
 		
-	case VG_LINE_TO_REL:
-		if (new_path_table[prev_command][1])
-			new_path(reduced_paths);
-		prev_command = 1;
-		line_to(last_path, cpx, cpy, cpx + c0, cpy + c1);
-		set(cpx + c0, cpy + c1, cpx + c0, cpy + c1);
-		break;
-
-	case VG_HLINE_TO_ABS:
+	case VG_HLINE_TO:
 		if (new_path_table[prev_command][1])
 			new_path(reduced_paths);
 		prev_command = 1;
@@ -706,15 +694,7 @@ static void shReduceSegment(SHPath *p, VGPathSegment segment,
 		set(c0, cpy, c0, cpy);
 		break;
 
-	case VG_HLINE_TO_REL:
-		if (new_path_table[prev_command][1])
-			new_path(reduced_paths);
-		prev_command = 1;
-		line_to(last_path, cpx, cpy, cpx + c0, cpy);
-		set(cpx + c0, cpy, cpx + c0, cpy);
-		break;
-
-	case VG_VLINE_TO_ABS:
+	case VG_VLINE_TO:
 		if (new_path_table[prev_command][1])
 			new_path(reduced_paths);
 		prev_command = 1;
@@ -722,15 +702,7 @@ static void shReduceSegment(SHPath *p, VGPathSegment segment,
 		set(cpx, c0, cpx, c0);
 		break;
 
-	case VG_VLINE_TO_REL:
-		if (new_path_table[prev_command][1])
-			new_path(reduced_paths);
-		prev_command = 1;
-		line_to(last_path, cpx, cpy, cpx, cpy + c0);
-		set(cpx, cpy + c0, cpx, cpy + c0);
-		break;
-
-	case VG_QUAD_TO_ABS:
+	case VG_QUAD_TO:
 		if (new_path_table[prev_command][1])
 			new_path(reduced_paths);
 		prev_command = 1;
@@ -738,15 +710,7 @@ static void shReduceSegment(SHPath *p, VGPathSegment segment,
 		set(c2, c3, c0, c1);
 		break;
 
-	case VG_QUAD_TO_REL:
-		if (new_path_table[prev_command][1])
-			new_path(reduced_paths);
-		prev_command = 1;
-		quad_to(last_path, cpx, cpy, cpx + c0, cpy + c1, cpx + c2, cpy + c3);
-		set(cpx + c2, cpy + c3, cpx + c0, cpy + c1);
-		break;
-
-	case VG_CUBIC_TO_ABS:
+	case VG_CUBIC_TO:
 		if (new_path_table[prev_command][1])
 			new_path(reduced_paths);
 		prev_command = 1;
@@ -754,31 +718,15 @@ static void shReduceSegment(SHPath *p, VGPathSegment segment,
 		set(c4, c5, c2, c3);
 		break;
 
-	case VG_CUBIC_TO_REL:
-		if (new_path_table[prev_command][1])
-			new_path(reduced_paths);
-		prev_command = 1;
-		cubic_to(last_path, cpx, cpy, cpx + c0, cpy + c1, cpx + c2, cpy + c3, cpx + c4, cpy + c5);
-		set(cpx + c4, cpy + c5, cpx + c2, cpy + c3);
-		break;
-
-	case VG_SQUAD_TO_ABS:
+	case VG_SQUAD_TO:
 		if (new_path_table[prev_command][1])
 			new_path(reduced_paths);
 		prev_command = 1;
 		quad_to(last_path, cpx, cpy, 2 * cpx - pepx, 2 * cpy - pepy, c0, c1);
 		set(c0, c1, 2 * cpx - pepx, 2 * cpy - pepy);
 		break;
-		
-	case VG_SQUAD_TO_REL:
-		if (new_path_table[prev_command][1])
-			new_path(reduced_paths);
-		prev_command = 1;
-		quad_to(last_path, cpx, cpy, 2 * cpx - pepx, 2 * cpy - pepy, cpx + c0, cpy + c1);
-		set(cpx + c0, cpy + c1, 2 * cpx - pepx, 2 * cpy - pepy);
-		break;
 
-	case VG_SCUBIC_TO_ABS:
+	case VG_SCUBIC_TO:
 		if (new_path_table[prev_command][1])
 			new_path(reduced_paths);
 		prev_command = 1;
@@ -786,79 +734,40 @@ static void shReduceSegment(SHPath *p, VGPathSegment segment,
 		set(c2, c3, c0, c1);
 		break;
 
-	case VG_SCUBIC_TO_REL:
-		if (new_path_table[prev_command][1])
-			new_path(reduced_paths);
-		prev_command = 1;
-		cubic_to(last_path, cpx, cpy, 2 * cpx - pepx, 2 * cpy - pepy, cpx + c0, cpy + c1, cpx + c2, cpy + c3);
-		set(cpx + c2, cpy + c3, cpx + c0, cpy + c1);
-		break;
-
-	case VG_SCCWARC_TO_ABS:
+	case VG_SCCWARC_TO:
 		if (new_path_table[prev_command][1])
 			new_path(reduced_paths);
 		prev_command = 1;
 		arc_to(last_path, cpx, cpy, c0, c1, c2, 0, 1, c3, c4);
 		set(c3, c4, c3, c4);
 		break;
-		
-	case VG_SCCWARC_TO_REL:
-		if (new_path_table[prev_command][1])
-			new_path(reduced_paths);
-		prev_command = 1;
-		arc_to(last_path, cpx, cpy, c0, c1, c2, 0, 1, cpx + c3, cpy + c4);
-		set(cpx + c3, cpy + c4, cpx + c3, cpy + c4);
-		break;
 
-	case VG_SCWARC_TO_ABS:
+	case VG_SCWARC_TO:
 		if (new_path_table[prev_command][1])
 			new_path(reduced_paths);
 		prev_command = 1;
 		arc_to(last_path, cpx, cpy, c0, c1, c2, 0, 0, c3, c4);
 		set(c3, c4, c3, c4);
 		break;
-		
-	case VG_SCWARC_TO_REL:
-		if (new_path_table[prev_command][1])
-			new_path(reduced_paths);
-		prev_command = 1;
-		arc_to(last_path, cpx, cpy, c0, c1, c2, 0, 0, cpx + c3, cpy + c4);
-		set(cpx + c3, cpy + c4, cpx + c3, cpy + c4);
-		break;
 
-	case VG_LCCWARC_TO_ABS:
+	case VG_LCCWARC_TO:
 		if (new_path_table[prev_command][1])
 			new_path(reduced_paths);
 		prev_command = 1;
 		arc_to(last_path, cpx, cpy, c0, c1, c2, 1, 1, c3, c4);
 		set(c3, c4, c3, c4);
 		break;
-		
-	case VG_LCCWARC_TO_REL:
-		if (new_path_table[prev_command][1])
-			new_path(reduced_paths);
-		prev_command = 1;
-		arc_to(last_path, cpx, cpy, c0, c1, c2, 1, 1, cpx + c3, cpy + c4);
-		set(cpx + c3, cpy + c4, cpx + c3, cpy + c4);
-		break;
 
-	case VG_LCWARC_TO_ABS:
+	case VG_LCWARC_TO:
 		if (new_path_table[prev_command][1])
 			new_path(reduced_paths);
 		prev_command = 1;
 		arc_to(last_path, cpx, cpy, c0, c1, c2, 1, 0, c3, c4);
 		set(c3, c4, c3, c4);
 		break;
-		
-	case VG_LCWARC_TO_REL:
-		if (new_path_table[prev_command][1])
-			new_path(reduced_paths);
-		prev_command = 1;
-		arc_to(last_path, cpx, cpy, c0, c1, c2, 1, 0, cpx + c3, cpy + c4);
-		set(cpx + c3, cpy + c4, cpx + c3, cpy + c4);
-		break;
 
 	default:
+		assert(0);
 		break;
 	}
 
