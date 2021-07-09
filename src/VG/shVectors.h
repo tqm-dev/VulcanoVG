@@ -3,6 +3,7 @@
 #define __SHVECTORS_H
 
 #include "shDefs.h"
+#include "kvec.h"
 
 /* Vector structures
  *--------------------------------------------------------------*/
@@ -47,6 +48,24 @@ typedef struct
 
 void SHMatrix3x3_ctor(SHMatrix3x3 *m);
 void SHMatrix3x3_dtor(SHMatrix3x3 *m);
+
+// always starts with 'M'
+// after 'M', only contains 'L' and 'Q'
+// optionally finishes with 'Z'
+struct reduced_path
+{
+    kvec_t(unsigned char) commands;
+    kvec_t(float) coords;
+};
+
+typedef kvec_t(struct reduced_path) reduced_path_vec;
+
+struct geometry
+{
+    kvec_t(float) vertices;
+    kvec_t(unsigned short) indices;
+    size_t count;
+};
 
 /*------------------------------------------------------------
  * Vector Arrays

@@ -67,6 +67,22 @@ typedef struct SHPath
   SHint segCount;
   SHint dataCount;
 
+  /* Reduced data */
+  reduced_path_vec reduced_paths;
+
+  /* Geometries for counting pixcel coverage */
+  struct geometry fill_geoms[4];  /* 0: front-solid
+                                     1: back-solid
+                                     2: front-quad
+                                     3: back-quad    */
+
+  struct geometry stroke_geoms[2];/* 1: solid
+                                     2: quad  */
+  size_t fill_counts[2];
+  int    fill_starts[2];
+  float  fill_bounds[4];
+  float  stroke_bounds[4];
+
   /* Subdivision */
   SHVertexArray vertices;
   SHVector2 min, max;
@@ -89,6 +105,10 @@ typedef struct SHPath
   SHfloat        cacheStrokeMiterLimit;
   SHfloat        cacheStrokeDashPhase;
   VGboolean      cacheStrokeDashPhaseReset;
+
+  VGboolean      cacheReducedPaths;
+  VGboolean      cacheFillGeometries;
+  VGboolean      cacheStrokeGeometries;
   
 } SHPath;
 

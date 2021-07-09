@@ -296,6 +296,11 @@ VG_API_CALL void vgDrawPath(VGPath path, VGbitfield paintModes)
 
     shFindBoundbox(p);
   }
+
+#if 0
+  // for testing reduce path
+  shReducePath(p);
+#endif
   
   /* TODO: Turn antialiasing on/off */
   glDisable(GL_LINE_SMOOTH);

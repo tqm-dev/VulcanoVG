@@ -3,6 +3,7 @@
 #include <VG/openvg.h>
 #include "shContext.h"
 #include "shGeometry.h"
+#include "kvec.h"
 
 
 static int shAddVertex(SHPath *p, SHVertex *v, SHint *contourStart)
@@ -321,6 +322,561 @@ static void shSubdivideSegment(SHPath *p, VGPathSegment segment,
   shAddVertex(p, &v, contourStart);
 }
 
+#define MIN(x, y) ((x) < (y) ? (x) : (y))
+#define MAX(x, y) ((x) > (y) ? (x) : (y))
+
+static void subdivide_cubic(const double c[8], double c1[8], double c2[8])
+{
+    double p1x = (c[0] + c[2]) / 2;
+    double p1y = (c[1] + c[3]) / 2;
+    double p2x = (c[2] + c[4]) / 2;
+    double p2y = (c[3] + c[5]) / 2;
+    double p3x = (c[4] + c[6]) / 2;
+    double p3y = (c[5] + c[7]) / 2;
+    double p4x = (p1x + p2x) / 2;
+    double p4y = (p1y + p2y) / 2;
+    double p5x = (p2x + p3x) / 2;
+    double p5y = (p2y + p3y) / 2;
+    double p6x = (p4x + p5x) / 2;
+    double p6y = (p4y + p5y) / 2;
+
+    double p0x = c[0];
+    double p0y = c[1];
+    double p7x = c[6];
+    double p7y = c[7];
+
+    c1[0] = p0x;
+    c1[1] = p0y;
+    c1[2] = p1x;
+    c1[3] = p1y;
+    c1[4] = p4x;
+    c1[5] = p4y;
+    c1[6] = p6x;
+    c1[7] = p6y;
+
+    c2[0] = p6x;
+    c2[1] = p6y;
+    c2[2] = p5x;
+    c2[3] = p5y;
+    c2[4] = p3x;
+    c2[5] = p3y;
+    c2[6] = p7x;
+    c2[7] = p7y;
+}
+
+static void subdivide_cubic2(const double cin[8], double cout[16])
+{
+    subdivide_cubic(cin, cout, cout + 8);
+}
+
+static void subdivide_cubic4(const double cin[8], double cout[32])
+{
+    subdivide_cubic(cin, cout, cout + 16);
+    subdivide_cubic2(cout, cout);
+    subdivide_cubic2(cout + 16, cout + 16);
+}
+
+static void subdivide_cubic8(const double cin[8], double cout[64])
+{
+    subdivide_cubic(cin, cout, cout + 32);
+    subdivide_cubic4(cout, cout);
+    subdivide_cubic4(cout + 32, cout + 32);
+}
+
+static void cubic_to_quadratic(const double c[8], double q[6])
+{
+    q[0] = c[0];
+    q[1] = c[1];
+    q[2] = (3 * (c[2] + c[4]) - (c[0] + c[6])) / 4;
+    q[3] = (3 * (c[3] + c[5]) - (c[1] + c[7])) / 4;
+    q[4] = c[6];
+    q[5] = c[7];
+}
+
+static void new_path(reduced_path_vec *paths)
+{
+    struct reduced_path rp = {0};
+    kv_push_back(*paths, rp);
+}
+
+static void move_to(struct reduced_path *path, float x, float y)
+{
+    if (kv_empty(path->commands))
+    {
+        kv_push_back(path->commands, VG_MOVE_TO_ABS);
+        kv_push_back(path->coords, x);
+        kv_push_back(path->coords, y);
+    }
+    else
+    {
+        kv_a(path->coords, 0) = x;
+        kv_a(path->coords, 1) = y;
+    }
+}
+
+static void line_to(struct reduced_path *path, float x1, float y1, float x2, float y2)
+{
+    if (kv_empty(path->commands))
+    {
+        kv_push_back(path->commands, VG_MOVE_TO_ABS);
+        kv_push_back(path->coords, x1);
+        kv_push_back(path->coords, y1);
+    }
+
+    kv_push_back(path->commands, VG_LINE_TO_ABS);
+    kv_push_back(path->coords, x2);
+    kv_push_back(path->coords, y2);
+}
+
+static void quad_to(struct reduced_path *path, float x1, float y1, float x2, float y2, float x3, float y3)
+{
+    if (kv_empty(path->commands))
+    {
+        kv_push_back(path->commands, VG_MOVE_TO_ABS);
+        kv_push_back(path->coords, x1);
+        kv_push_back(path->coords, y1);
+    }
+
+    kv_push_back(path->commands, VG_QUAD_TO_ABS);
+    kv_push_back(path->coords, x2);
+    kv_push_back(path->coords, y2);
+    kv_push_back(path->coords, x3);
+    kv_push_back(path->coords, y3);
+}
+
+static void cubic_to(struct reduced_path *path, float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4)
+{
+    int i;
+
+    double cin[8] = { x1, y1, x2, y2, x3, y3, x4, y4 };
+    double cout[64];
+    subdivide_cubic8(cin, cout);
+
+    if (kv_empty(path->commands))
+    {
+        kv_push_back(path->commands, VG_MOVE_TO_ABS);
+        kv_push_back(path->coords, x1);
+        kv_push_back(path->coords, y1);
+    }
+
+    for (i = 0; i < 8; ++i)
+    {
+        double q[6];
+        cubic_to_quadratic(cout + i * 8, q);
+        kv_push_back(path->commands, VG_QUAD_TO_ABS);
+        kv_push_back(path->coords, q[2]);
+        kv_push_back(path->coords, q[3]);
+        kv_push_back(path->coords, q[4]);
+        kv_push_back(path->coords, q[5]);
+    }
+}
+
+static double angle(double ux, double uy, double vx, double vy)
+{
+    return atan2(ux * vy - uy * vx, ux * vx + uy * vy);
+}
+
+/* http://www.w3.org/TR/SVG/implnote.html#ArcConversionEndpointToCenter */
+static void endpoint_to_center(double x1, double y1, double x2, double y2,
+                               int fA, int fS, double *prx, double *pry, double phi,
+                               double *cx, double *cy, double *theta1, double *dtheta)
+{
+    double x1p, y1p, rx, ry, lambda, fsgn, c1, cxp, cyp;
+
+    x1p =  cos(phi) * (x1 - x2) / 2 + sin(phi) * (y1 - y2) / 2;
+    y1p = -sin(phi) * (x1 - x2) / 2 + cos(phi) * (y1 - y2) / 2;
+
+    rx = *prx;
+    ry = *pry;
+
+    lambda = (x1p * x1p) / (rx * rx) + (y1p * y1p) / (ry * ry);
+    if (lambda > 1)
+    {
+        lambda = sqrt(lambda);
+        rx *= lambda;
+        ry *= lambda;
+        *prx = rx;
+        *pry = ry;
+    }
+
+    fA = !!fA;
+    fS = !!fS;
+
+    fsgn = (fA != fS) ? 1 : -1;
+
+    c1 = (rx*rx*ry*ry - rx*rx*y1p*y1p - ry*ry*x1p*x1p) / (rx*rx*y1p*y1p + ry*ry*x1p*x1p);
+
+    if (c1 < 0)	// because of floating point inaccuracies, c1 can be -epsilon.
+        c1 = 0;
+    else
+        c1 = sqrt(c1);
+
+    cxp = fsgn * c1 * (rx * y1p / ry);
+    cyp = fsgn * c1 * (-ry * x1p / rx);
+
+    *cx = cos(phi) * cxp - sin(phi) * cyp + (x1 + x2) / 2;
+    *cy = sin(phi) * cxp + cos(phi) * cyp + (y1 + y2) / 2;
+
+    *theta1 = angle(1, 0, (x1p - cxp) / rx, (y1p - cyp) / ry);
+
+    *dtheta = angle((x1p - cxp) / rx, (y1p - cyp) / ry, (-x1p - cxp) / rx, (-y1p - cyp) / ry);
+
+    if (!fS && *dtheta > 0)
+        *dtheta -= 2 * M_PI;
+    else if (fS && *dtheta < 0)
+        *dtheta += 2 * M_PI;
+}
+
+static void arc_tod(struct reduced_path *path, double x1, double y1, double rh, double rv, double phi, int fA, int fS, double x2, double y2)
+{
+    double cx, cy, theta1, dtheta;
+
+    int i, nquads;
+
+    phi *= M_PI / 180;
+
+    endpoint_to_center(x1, y1, x2, y2, fA, fS, &rh, &rv, phi, &cx, &cy, &theta1, &dtheta);
+
+    nquads = ceil(fabs(dtheta) * 4 / M_PI);
+
+    for (i = 0; i < nquads; ++i)
+    {
+        double t1 = theta1 + (i / (double)nquads) * dtheta;
+        double t2 = theta1 + ((i + 1) / (double)nquads) * dtheta;
+        double tm = (t1 + t2) / 2;
+
+        double x1 = cos(phi)*rh*cos(t1) - sin(phi)*rv*sin(t1) + cx;
+        double y1 = sin(phi)*rh*cos(t1) + cos(phi)*rv*sin(t1) + cy;
+
+        double x2 = cos(phi)*rh*cos(t2) - sin(phi)*rv*sin(t2) + cx;
+        double y2 = sin(phi)*rh*cos(t2) + cos(phi)*rv*sin(t2) + cy;
+
+        double xm = cos(phi)*rh*cos(tm) - sin(phi)*rv*sin(tm) + cx;
+        double ym = sin(phi)*rh*cos(tm) + cos(phi)*rv*sin(tm) + cy;
+
+        double xc = (xm * 4 - (x1 + x2)) / 2;
+        double yc = (ym * 4 - (y1 + y2)) / 2;
+
+        kv_push_back(path->commands, VG_QUAD_TO_ABS);
+        kv_push_back(path->coords, xc);
+        kv_push_back(path->coords, yc);
+        kv_push_back(path->coords, x2);
+        kv_push_back(path->coords, y2);
+    }
+}
+
+static void arc_to(struct reduced_path *path, float x1, float y1, float rh, float rv, float phi, int fA, int fS, float x2, float y2)
+{
+    if (kv_empty(path->commands))
+    {
+        kv_push_back(path->commands, VG_MOVE_TO_ABS);
+        kv_push_back(path->coords, x1);
+        kv_push_back(path->coords, y1);
+    }
+
+    arc_tod(path, x1, y1, rh, rv, phi, fA, fS, x2, y2);
+}
+
+static void close_path(struct reduced_path *path)
+{
+    if (kv_back(path->commands) != VG_CLOSE_PATH)
+        kv_push_back(path->commands, VG_CLOSE_PATH);
+}
+
+// Place pen into first two coords
+// which is same as last_path
+//         data[0]
+//         data[1]
+#define c0 data[2]
+#define c1 data[3]
+#define c2 data[4]
+#define c3 data[5]
+#define c4 data[6]
+#define c5 data[7]
+#define c6 data[8]
+#define set(x1, y1, x2, y2) ncpx = x1; ncpy = y1; npepx = x2; npepy = y2;
+#define last_path &kv_back(*reduced_paths)
+static const int new_path_table[3][3] = {{0, 0, 0}, {1, 0, 0}, {1, 1, 0}};
+static float spx = 0, spy = 0;
+static float cpx = 0, cpy = 0;
+static float pepx = 0, pepy = 0;
+static float ncpx = 0, ncpy = 0;
+static float npepx = 0, npepy = 0;
+static unsigned char prev_command = 2;
+
+static void shReduceSegmentInit(reduced_path_vec* rpv){
+	spx = 0; spy = 0;
+	cpx = 0; cpy = 0;
+	pepx = 0; pepy = 0;
+	ncpx = 0; ncpy = 0;
+	npepx = 0; npepy = 0;
+	prev_command = 2;
+    kv_init(*rpv);
+}
+
+static void shReduceSegmentDeinit(reduced_path_vec* rpv){
+	spx = 0; spy = 0;
+	cpx = 0; cpy = 0;
+	pepx = 0; pepy = 0;
+	ncpx = 0; ncpy = 0;
+	npepx = 0; npepy = 0;
+	prev_command = 2;
+	// reduced path
+	size_t i;
+	for (i = 0; i < kv_size(*rpv); ++i)
+	{
+		kv_free(kv_a(*rpv, i).commands);
+		kv_free(kv_a(*rpv, i).coords);
+	}
+	kv_free(*rpv);
+}
+
+/*
+M: 0
+L: 1
+Z: 2
+
+M -> M no
+M -> L no
+M -> Z no
+L -> M yes
+L -> L no
+L -> Z no
+Z -> M yes
+Z -> L yes
+Z -> Z no
+*/
+static void shReduceSegment(SHPath *p, VGPathSegment segment,
+                               VGPathCommand originalCommand,
+                               SHfloat *data, void *userData)
+{
+	reduced_path_vec* reduced_paths = &p->reduced_paths;
+	
+	switch(segment)
+	{
+	case VG_MOVE_TO_ABS:
+		if (new_path_table[prev_command][0])
+			new_path(reduced_paths);
+		prev_command = 0;
+		move_to(last_path, c0, c1);
+		set(c0, c1, c0, c1);
+		spx = ncpx;
+		spy = ncpy;
+		break;
+
+	case VG_MOVE_TO_REL:
+		if (new_path_table[prev_command][0])
+			new_path(reduced_paths);
+		prev_command = 0;
+		move_to(last_path, cpx + c0, cpy + c1);
+		set(cpx + c0, cpy + c1, cpx + c0, cpy + c1);
+		spx = ncpx;
+		spy = ncpy;
+		break;
+
+	case VG_CLOSE_PATH:
+		if (new_path_table[prev_command][2])
+			new_path(reduced_paths);
+		prev_command = 2;
+		close_path(last_path);
+		set(spx, spy, spx, spy);
+		break;
+
+	case VG_LINE_TO_ABS:
+		if (new_path_table[prev_command][1])
+			new_path(reduced_paths);
+		prev_command = 1;
+		line_to(last_path, cpx, cpy, c0, c1);
+		set(c0, c1, c0, c1);
+		break;
+		
+	case VG_LINE_TO_REL:
+		if (new_path_table[prev_command][1])
+			new_path(reduced_paths);
+		prev_command = 1;
+		line_to(last_path, cpx, cpy, cpx + c0, cpy + c1);
+		set(cpx + c0, cpy + c1, cpx + c0, cpy + c1);
+		break;
+
+	case VG_HLINE_TO_ABS:
+		if (new_path_table[prev_command][1])
+			new_path(reduced_paths);
+		prev_command = 1;
+		line_to(last_path, cpx, cpy, c0, cpy);
+		set(c0, cpy, c0, cpy);
+		break;
+
+	case VG_HLINE_TO_REL:
+		if (new_path_table[prev_command][1])
+			new_path(reduced_paths);
+		prev_command = 1;
+		line_to(last_path, cpx, cpy, cpx + c0, cpy);
+		set(cpx + c0, cpy, cpx + c0, cpy);
+		break;
+
+	case VG_VLINE_TO_ABS:
+		if (new_path_table[prev_command][1])
+			new_path(reduced_paths);
+		prev_command = 1;
+		line_to(last_path, cpx, cpy, cpx, c0);
+		set(cpx, c0, cpx, c0);
+		break;
+
+	case VG_VLINE_TO_REL:
+		if (new_path_table[prev_command][1])
+			new_path(reduced_paths);
+		prev_command = 1;
+		line_to(last_path, cpx, cpy, cpx, cpy + c0);
+		set(cpx, cpy + c0, cpx, cpy + c0);
+		break;
+
+	case VG_QUAD_TO_ABS:
+		if (new_path_table[prev_command][1])
+			new_path(reduced_paths);
+		prev_command = 1;
+		quad_to(last_path, cpx, cpy, c0, c1, c2, c3);
+		set(c2, c3, c0, c1);
+		break;
+
+	case VG_QUAD_TO_REL:
+		if (new_path_table[prev_command][1])
+			new_path(reduced_paths);
+		prev_command = 1;
+		quad_to(last_path, cpx, cpy, cpx + c0, cpy + c1, cpx + c2, cpy + c3);
+		set(cpx + c2, cpy + c3, cpx + c0, cpy + c1);
+		break;
+
+	case VG_CUBIC_TO_ABS:
+		if (new_path_table[prev_command][1])
+			new_path(reduced_paths);
+		prev_command = 1;
+		cubic_to(last_path, cpx, cpy, c0, c1, c2, c3, c4, c5);
+		set(c4, c5, c2, c3);
+		break;
+
+	case VG_CUBIC_TO_REL:
+		if (new_path_table[prev_command][1])
+			new_path(reduced_paths);
+		prev_command = 1;
+		cubic_to(last_path, cpx, cpy, cpx + c0, cpy + c1, cpx + c2, cpy + c3, cpx + c4, cpy + c5);
+		set(cpx + c4, cpy + c5, cpx + c2, cpy + c3);
+		break;
+
+	case VG_SQUAD_TO_ABS:
+		if (new_path_table[prev_command][1])
+			new_path(reduced_paths);
+		prev_command = 1;
+		quad_to(last_path, cpx, cpy, 2 * cpx - pepx, 2 * cpy - pepy, c0, c1);
+		set(c0, c1, 2 * cpx - pepx, 2 * cpy - pepy);
+		break;
+		
+	case VG_SQUAD_TO_REL:
+		if (new_path_table[prev_command][1])
+			new_path(reduced_paths);
+		prev_command = 1;
+		quad_to(last_path, cpx, cpy, 2 * cpx - pepx, 2 * cpy - pepy, cpx + c0, cpy + c1);
+		set(cpx + c0, cpy + c1, 2 * cpx - pepx, 2 * cpy - pepy);
+		break;
+
+	case VG_SCUBIC_TO_ABS:
+		if (new_path_table[prev_command][1])
+			new_path(reduced_paths);
+		prev_command = 1;
+		cubic_to(last_path, cpx, cpy, 2 * cpx - pepx, 2 * cpy - pepy, c0, c1, c2, c3);
+		set(c2, c3, c0, c1);
+		break;
+
+	case VG_SCUBIC_TO_REL:
+		if (new_path_table[prev_command][1])
+			new_path(reduced_paths);
+		prev_command = 1;
+		cubic_to(last_path, cpx, cpy, 2 * cpx - pepx, 2 * cpy - pepy, cpx + c0, cpy + c1, cpx + c2, cpy + c3);
+		set(cpx + c2, cpy + c3, cpx + c0, cpy + c1);
+		break;
+
+	case VG_SCCWARC_TO_ABS:
+		if (new_path_table[prev_command][1])
+			new_path(reduced_paths);
+		prev_command = 1;
+		arc_to(last_path, cpx, cpy, c0, c1, c2, 0, 1, c3, c4);
+		set(c3, c4, c3, c4);
+		break;
+		
+	case VG_SCCWARC_TO_REL:
+		if (new_path_table[prev_command][1])
+			new_path(reduced_paths);
+		prev_command = 1;
+		arc_to(last_path, cpx, cpy, c0, c1, c2, 0, 1, cpx + c3, cpy + c4);
+		set(cpx + c3, cpy + c4, cpx + c3, cpy + c4);
+		break;
+
+	case VG_SCWARC_TO_ABS:
+		if (new_path_table[prev_command][1])
+			new_path(reduced_paths);
+		prev_command = 1;
+		arc_to(last_path, cpx, cpy, c0, c1, c2, 0, 0, c3, c4);
+		set(c3, c4, c3, c4);
+		break;
+		
+	case VG_SCWARC_TO_REL:
+		if (new_path_table[prev_command][1])
+			new_path(reduced_paths);
+		prev_command = 1;
+		arc_to(last_path, cpx, cpy, c0, c1, c2, 0, 0, cpx + c3, cpy + c4);
+		set(cpx + c3, cpy + c4, cpx + c3, cpy + c4);
+		break;
+
+	case VG_LCCWARC_TO_ABS:
+		if (new_path_table[prev_command][1])
+			new_path(reduced_paths);
+		prev_command = 1;
+		arc_to(last_path, cpx, cpy, c0, c1, c2, 1, 1, c3, c4);
+		set(c3, c4, c3, c4);
+		break;
+		
+	case VG_LCCWARC_TO_REL:
+		if (new_path_table[prev_command][1])
+			new_path(reduced_paths);
+		prev_command = 1;
+		arc_to(last_path, cpx, cpy, c0, c1, c2, 1, 1, cpx + c3, cpy + c4);
+		set(cpx + c3, cpy + c4, cpx + c3, cpy + c4);
+		break;
+
+	case VG_LCWARC_TO_ABS:
+		if (new_path_table[prev_command][1])
+			new_path(reduced_paths);
+		prev_command = 1;
+		arc_to(last_path, cpx, cpy, c0, c1, c2, 1, 0, c3, c4);
+		set(c3, c4, c3, c4);
+		break;
+		
+	case VG_LCWARC_TO_REL:
+		if (new_path_table[prev_command][1])
+			new_path(reduced_paths);
+		prev_command = 1;
+		arc_to(last_path, cpx, cpy, c0, c1, c2, 1, 0, cpx + c3, cpy + c4);
+		set(cpx + c3, cpy + c4, cpx + c3, cpy + c4);
+		break;
+
+	default:
+		break;
+	}
+
+	cpx = ncpx;
+	cpy = ncpy;
+	pepx = npepx;
+	pepy = npepy;
+}
+#undef c0
+#undef c1
+#undef c2
+#undef c3
+#undef c4
+#undef c5
+#undef c6
+#undef set
+#undef last_path
+
 /*--------------------------------------------------
  * Processes path data by simplfying it and sending
  * each segment to subdivision callback function
@@ -342,6 +898,18 @@ void shFlattenPath(SHPath *p, SHint surfaceSpace)
   
   shVertexArrayClear(&p->vertices);
   shProcessPathData(p, processFlags, shSubdivideSegment, userData);
+}
+
+/*--------------------------------------------------
+ * Processes path data by simplfying it and sending
+ * each segment to reducer callback function
+ *--------------------------------------------------*/
+void shReducePath(SHPath *p)
+{
+  // Reduce paths
+  shReduceSegmentInit(&p->reduced_paths); // for test
+  shProcessPathData(p, 0, shReduceSegment, NULL);
+  shReduceSegmentDeinit(&p->reduced_paths); // for test
 }
 
 /*-------------------------------------------
