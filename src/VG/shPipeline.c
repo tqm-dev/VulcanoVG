@@ -298,11 +298,11 @@ VG_API_CALL void vgDrawPath(VGPath path, VGbitfield paintModes)
 
 #if 0 // test for bake path
   shReducePath(p);
-  p->stroke_width = 1;
-  p->join_style = VG_JOIN_BEVEL;
-  p->initial_end_cap = 0;  // FLAT
-  p->terminal_end_cap = 0; // FLAT
-  p->miter_limit = 4;
+  p->stroke_width = context->strokeLineWidth;
+  p->join_style = context->strokeJoinStyle;
+  p->initial_end_cap = context->strokeCapStyle;
+  p->terminal_end_cap = context->strokeCapStyle;
+  p->miter_limit = context->strokeMiterLimit;
   p->num_dashes = 0;
   p->dashes = NULL;
   p->dash_length = 0;

@@ -1228,6 +1228,16 @@ static int check_offset(SHPath *path, float of)
     return 0;
 }
 
+static void add_join_miter_truncate(SHPath *path, float x0, float y0, float x1, float y1, float x2, float y2)
+{
+    //TODO
+}
+
+static void add_join_round(SHPath *path, float x0, float y0, float x1, float y1, float x2, float y2)
+{
+    //TODO
+}
+
 static void add_join(SHPath *path, float x0, float y0, float x1, float y1, float x2, float y2)
 {
     switch (path->join_style)
@@ -1235,10 +1245,13 @@ static void add_join(SHPath *path, float x0, float y0, float x1, float y1, float
     case VG_JOIN_BEVEL:
         add_join_bevel(path, x0, y0, x1, y1, x2, y2);
         break;
-    default:
     case VG_JOIN_MITER:
+        add_join_miter_truncate(path, x0, y0, x1, y1, x2, y2);
+        break;
     case VG_JOIN_ROUND:
-        //TODO
+        add_join_round(path, x0, y0, x1, y1, x2, y2);
+        break;
+    default:
         assert(0);
         break;
     }
