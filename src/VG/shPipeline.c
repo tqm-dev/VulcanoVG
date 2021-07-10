@@ -295,13 +295,28 @@ VG_API_CALL void vgDrawPath(VGPath path, VGbitfield paintModes)
       shTransformVertices(&mi, p);
 
     shFindBoundbox(p);
+
+#if 0 // test for bake path
+  shReducePath(p);
+  p->stroke_width = 1;
+  p->join_style = VG_JOIN_BEVEL;
+  p->initial_end_cap = 0;  // FLAT
+  p->terminal_end_cap = 0; // FLAT
+  p->miter_limit = 4;
+  p->num_dashes = 0;
+  p->dashes = NULL;
+  p->dash_length = 0;
+  p->fill_geoms[0].count = 0;
+  p->fill_geoms[1].count = 0;
+  p->fill_geoms[2].count = 0;
+  p->fill_geoms[3].count = 0;
+  p->stroke_geoms[0].count = 0;
+  p->stroke_geoms[1].count = 0;
+  shCreateFillGeometry(p);
+  shCreateStrokeGeometry(p);
+#endif
   }
 
-#if 0
-  // for testing reduce path
-  shReducePath(p);
-#endif
-  
   /* TODO: Turn antialiasing on/off */
   glDisable(GL_LINE_SMOOTH);
   glDisable(GL_POLYGON_SMOOTH);

@@ -71,17 +71,28 @@ typedef struct SHPath
   reduced_path_vec reduced_paths;
 
   /* Geometries for counting pixcel coverage */
+
+  // Fill
   struct geometry fill_geoms[4];  /* 0: front-solid
                                      1: back-solid
                                      2: front-quad
                                      3: back-quad    */
-
-  struct geometry stroke_geoms[2];/* 1: solid
-                                     2: quad  */
   size_t fill_counts[2];
   int    fill_starts[2];
   float  fill_bounds[4];
+
+  // Stroke
+  struct geometry stroke_geoms[2];/* 1: solid
+                                     2: quad  */
   float  stroke_bounds[4];
+  float  stroke_width;
+  int    join_style;
+  int    initial_end_cap;
+  int    terminal_end_cap;
+  float  miter_limit;
+  int    num_dashes;
+  float  *dashes;
+  float  dash_length;
 
   /* Subdivision */
   SHVertexArray vertices;
