@@ -73,10 +73,14 @@ void updateBlendingStateGL(VGContext *c, int alphaIsOne)
 
 static void shDrawStroke(SHPath *p)
 {
+#if RENDERING_ENGINE == OPENGL_1
   glEnableClientState(GL_VERTEX_ARRAY);
   glVertexPointer(2, GL_FLOAT, 0, p->stroke.items);
+#endif
   glDrawArrays(GL_TRIANGLES, 0, p->stroke.size);
+#if RENDERING_ENGINE == OPENGL_1
   glDisableClientState(GL_VERTEX_ARRAY);
+#endif
 }
 
 /*-----------------------------------------------------------
@@ -91,8 +95,10 @@ static void shDrawVertices(SHPath *p, GLenum mode)
   
   /* We separate vertex arrays by contours to properly
      handle the fill modes */
+#if RENDERING_ENGINE == OPENGL_1
   glEnableClientState(GL_VERTEX_ARRAY);
   glVertexPointer(2, GL_FLOAT, sizeof(SHVertex), p->vertices.items);
+#endif
   
   while (start < p->vertices.size) {
     size = p->vertices.items[start].flags;
@@ -100,7 +106,9 @@ static void shDrawVertices(SHPath *p, GLenum mode)
     start += size;
   }
   
+#if RENDERING_ENGINE == OPENGL_1
   glDisableClientState(GL_VERTEX_ARRAY);
+#endif
 }
 
 /*-------------------------------------------------------------
@@ -113,12 +121,14 @@ static void shDrawBoundBox(VGContext *c, SHPath *p, VGPaintMode mode)
   if (mode == VG_STROKE_PATH)
     K = SH_CEIL(c->strokeMiterLimit * c->strokeLineWidth) + 1.0f;
   
+#if RENDERING_ENGINE == OPENGL_1
   glBegin(GL_QUADS);
   glVertex2f(p->min.x-K, p->min.y-K);
   glVertex2f(p->max.x+K, p->min.y-K);
   glVertex2f(p->max.x+K, p->max.y+K);
   glVertex2f(p->min.x-K, p->max.y+K);
   glEnd();
+#endif
 }
 
 /*--------------------------------------------------------------
@@ -166,6 +176,7 @@ static void shDrawPaintMesh(VGContext *c, SHVector2 *min, SHVector2 *max,
     }/* else behave as a color paint */
   
   case VG_PAINT_TYPE_COLOR:
+#if RENDERING_ENGINE == OPENGL_1
     glColor4fv((GLfloat*)&p->color);
     glBegin(GL_QUADS);
     glVertex2f(pmin.x, pmin.y);
@@ -173,6 +184,7 @@ static void shDrawPaintMesh(VGContext *c, SHVector2 *min, SHVector2 *max,
     glVertex2f(pmax.x, pmax.y);
     glVertex2f(pmin.x, pmax.y);
     glEnd();
+#endif
     break;
   }
 }
@@ -317,10 +329,12 @@ VG_API_CALL void vgDrawPath(VGPath path, VGbitfield paintModes)
 #endif
   }
 
+#if RENDERING_ENGINE == OPENGL_1
   /* TODO: Turn antialiasing on/off */
   glDisable(GL_LINE_SMOOTH);
   glDisable(GL_POLYGON_SMOOTH);
   glEnable(GL_MULTISAMPLE);
+#endif
   
   /* Pick paint if available or default*/
   fill = (context->fillPaint ? context->fillPaint : &context->defaultPaint);
@@ -328,9 +342,11 @@ VG_API_CALL void vgDrawPath(VGPath path, VGbitfield paintModes)
   
   /* Apply transformation */
   shMatrixToGL(&context->pathTransform, mgl);
+#if RENDERING_ENGINE == OPENGL_1
   glMatrixMode(GL_MODELVIEW);
   glPushMatrix();
   glMultMatrixf(mgl);
+#endif
   
   if (paintModes & VG_FILL_PATH) {
     
@@ -366,10 +382,12 @@ VG_API_CALL void vgDrawPath(VGPath path, VGbitfield paintModes)
     glDisable(GL_BLEND);
   }
   
+#if RENDERING_ENGINE == OPENGL_1
   /* TODO: Turn antialiasing on/off */
   glDisable(GL_LINE_SMOOTH);
   glDisable(GL_POLYGON_SMOOTH);
   glEnable(GL_MULTISAMPLE);
+#endif
   
   if ((paintModes & VG_STROKE_PATH) &&
       context->strokeLineWidth > 0.0f) {
@@ -420,20 +438,26 @@ VG_API_CALL void vgDrawPath(VGPath path, VGbitfield paintModes)
         c.a *= context->strokeLineWidth;
       
       /* Draw contour as a line */
-      glDisable(GL_MULTISAMPLE);
       glEnable(GL_BLEND);
-      glEnable(GL_LINE_SMOOTH);
       glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+#if RENDERING_ENGINE == OPENGL_1
+      glDisable(GL_MULTISAMPLE);
+      glEnable(GL_LINE_SMOOTH);
       glColor4fv((GLfloat*)&c);
+#endif
       shDrawVertices(p, GL_LINE_STRIP);
       
       glDisable(GL_BLEND);
+#if RENDERING_ENGINE == OPENGL_1
       glDisable(GL_LINE_SMOOTH);
+#endif
     }
   }
   
   
+#if RENDERING_ENGINE == OPENGL_1
   glPopMatrix();
+#endif
   
   if (context->scissoring == VG_TRUE)
     glDisable( GL_SCISSOR_TEST );
@@ -471,16 +495,20 @@ VG_API_CALL void vgDrawImage(VGImage image)
   /* Apply image-user-to-surface transformation */
   i = (SHImage*)image;
   shMatrixToGL(&context->imageTransform, mgl);
+#if RENDERING_ENGINE == OPENGL_1
   glMatrixMode(GL_MODELVIEW);
   glPushMatrix();
   glMultMatrixf(mgl);
+#endif
   
   /* Clamp to edge for proper filtering, modulate for multiply mode */
   glActiveTexture(GL_TEXTURE0);
   glBindTexture(GL_TEXTURE_2D, i->texture);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+#if RENDERING_ENGINE == OPENGL_1
   glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+#endif
   
   /* Adjust antialiasing to settings */
   if (context->imageQuality == VG_IMAGE_QUALITY_NONANTIALIASED) {
@@ -496,21 +524,25 @@ VG_API_CALL void vgDrawImage(VGImage image)
   /* Generate image texture coords automatically */
   texGenS[0] = 1.0f / i->texwidth;
   texGenT[1] = 1.0f / i->texheight;
+#if RENDERING_ENGINE == OPENGL_1
   glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR);
   glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR);
   glTexGenfv(GL_S, GL_OBJECT_PLANE, texGenS);
   glTexGenfv(GL_T, GL_OBJECT_PLANE, texGenT);
   glEnable(GL_TEXTURE_GEN_S);
   glEnable(GL_TEXTURE_GEN_T);
+#endif
   
   /* Pick fill paint */
   fill = (context->fillPaint ? context->fillPaint : &context->defaultPaint);
   
   /* Use paint color when multiplying with a color-paint */
+#if RENDERING_ENGINE == OPENGL_1
   if (context->imageMode == VG_DRAW_IMAGE_MULTIPLY &&
       fill->type == VG_PAINT_TYPE_COLOR)
       glColor4fv((GLfloat*)&fill->color);
   else glColor4f(1,1,1,1);
+#endif
   
   
   /* Check image drawing mode */
@@ -525,12 +557,14 @@ VG_API_CALL void vgDrawImage(VGImage image)
     glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
     glColorMask(GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE);
     
+#if RENDERING_ENGINE == OPENGL_1
     glBegin(GL_QUADS);
     glVertex2i(0, 0);
     glVertex2i(i->width, 0);
     glVertex2i(i->width, i->height);
     glVertex2i(0, i->height);
     glEnd();
+#endif
 
     /* Setup blending */
     updateBlendingStateGL(context, 0);
@@ -565,20 +599,24 @@ VG_API_CALL void vgDrawImage(VGImage image)
     /* Draw textured quad */
     glEnable(GL_TEXTURE_2D);
     
+#if RENDERING_ENGINE == OPENGL_1
     glBegin(GL_QUADS);
     glVertex2i(0, 0);
     glVertex2i(i->width, 0);
     glVertex2i(i->width, i->height);
     glVertex2i(0, i->height);
     glEnd();
+#endif
     
     glDisable(GL_TEXTURE_2D);
   }
   
   
+#if RENDERING_ENGINE == OPENGL_1
   glDisable(GL_TEXTURE_GEN_S);
   glDisable(GL_TEXTURE_GEN_T);
   glPopMatrix();
+#endif
 
   if (context->scissoring == VG_TRUE)
     glDisable( GL_SCISSOR_TEST );

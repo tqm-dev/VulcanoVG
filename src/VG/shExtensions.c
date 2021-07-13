@@ -15,13 +15,13 @@ void fallbackActiveTexture(GLenum texture) {
 }
 
 void fallbackMultiTexCoord1f(GLenum target, GLfloat x) {
-#if !VU_RENDERING_ENGINE_VULKAN
+#if RENDERING_ENGINE == OPENGL_1
   glTexCoord1f(x);
 #endif
 }
 
 void fallbackMultiTexCoord2f(GLenum target, GLfloat x, GLfloat y) {
-#if !VU_RENDERING_ENGINE_VULKAN
+#if RENDERING_ENGINE == OPENGL_1
   glTexCoord2f(x, y);
 #endif
 }
@@ -60,6 +60,8 @@ PFVOID shGetProcAddress(const char *name)
   #elif defined(__APPLE__)
   /* TODO: Mac OS glGetProcAddress implementation */
   return (PFVOID)NULL;
+  #elif RENDERING_ENGINE == OPENGL_ES2
+  return (PFVOID)NULL;
   #else
   return (PFVOID)glXGetProcAddress((const unsigned char *)name);
   #endif
@@ -67,7 +69,7 @@ PFVOID shGetProcAddress(const char *name)
 
 void shLoadExtensions(VGContext *c)
 {
-#if VU_RENDERING_ENGINE_VULKAN
+#if RENDERING_ENGINE != OPENGL_1
     c->isGLAvailable_ClampToEdge = 0;
     c->isGLAvailable_MirroredRepeat = 0;
     c->isGLAvailable_Multitexture = 0;

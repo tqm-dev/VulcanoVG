@@ -136,7 +136,11 @@ SHfloat getMaxFloat();
 #define SH_GRADIENT_TEX_SIZE       1024
 #define SH_GRADIENT_TEX_COORDSIZE   4096 /* 1024 * RGBA */
 
-#define VU_RENDERING_ENGINE_VULKAN		1
+#define OPENGL_1	0
+#define OPENGL_ES2	1
+#define VULKAN		2
+
+#define RENDERING_ENGINE	OPENGL_1
 
 /* OpenGL headers */
 
@@ -146,10 +150,12 @@ SHfloat getMaxFloat();
 #elif defined(_WIN32)
 #  include <GL/gl.h>
 #  include <GL/glu.h>
-#else
+#elif RENDERING_ENGINE == OPENGL_1
 #  include <GL/gl.h>
 #  include <GL/glu.h>
 #  include <GL/glx.h>
+#elif RENDERING_ENGINE == OPENGL_ES2
+#  include <GLES2/gl2.h>
 #endif
 
 /* Vulkan headers */

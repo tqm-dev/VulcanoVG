@@ -35,9 +35,11 @@ void SHPaint_ctor(SHPaint *p)
   p->pattern = VG_INVALID_HANDLE;
   
   glGenTextures(1, &p->texture);
+#if RENDERING_ENGINE == OPENGL_1
   glBindTexture(GL_TEXTURE_1D, p->texture);
   glTexImage1D(GL_TEXTURE_1D, 0, GL_RGBA, SH_GRADIENT_TEX_SIZE, 0,
                GL_RGBA, GL_FLOAT, NULL);
+#endif
 }
 
 void SHPaint_dtor(SHPaint *p)
@@ -161,10 +163,12 @@ void shUpdateColorRampTexture(SHPaint *p)
   }
   
   /* Update texture image */
+#if RENDERING_ENGINE == OPENGL_1
   glBindTexture(GL_TEXTURE_1D, p->texture);
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
   glTexSubImage1D(GL_TEXTURE_1D, 0, 0, SH_GRADIENT_TEX_SIZE,
                   GL_RGBA, GL_FLOAT, rgba);
+#endif
 }
 
 void shValidateInputStops(SHPaint *p)
@@ -326,6 +330,7 @@ void shGenerateStops(SHPaint *p, SHfloat minOffset, SHfloat maxOffset,
 
 void shSetGradientTexGLState(SHPaint *p)
 {
+#if RENDERING_ENGINE == OPENGL_1
   glBindTexture(GL_TEXTURE_1D, p->texture);
   glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -338,9 +343,12 @@ void shSetGradientTexGLState(SHPaint *p)
   case VG_COLOR_RAMP_SPREAD_REFLECT:
     glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT); break;
   }
+#endif
   
+#if RENDERING_ENGINE == OPENGL_1
   glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
   glColor4f(1,1,1,1);
+#endif
 }
 
 void shSetPatternTexGLState(SHPaint *p, VGContext *c)
@@ -353,8 +361,10 @@ void shSetPatternTexGLState(SHPaint *p, VGContext *c)
   case VG_TILE_FILL:
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+#if RENDERING_ENGINE == OPENGL_1
     glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR,
                      (GLfloat*)&c->tileFillColor);
+#endif
     break;
   case VG_TILE_PAD:
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -370,8 +380,10 @@ void shSetPatternTexGLState(SHPaint *p, VGContext *c)
     break;
   }
   
+#if RENDERING_ENGINE == OPENGL_1
   glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
   glColor4f(1,1,1,1);
+#endif
 }
 
 int shDrawLinearGradientMesh(SHPaint *p, SHVector2 *min, SHVector2 *max,
@@ -432,9 +444,11 @@ int shDrawLinearGradientMesh(SHPaint *p, SHVector2 *min, SHVector2 *max,
     
     /* Fill boundbox with color at offset 1 */
     SHColor *c = &p->stops.items[p->stops.size-1].color;
+#if RENDERING_ENGINE == OPENGL_1
     glColor4fv((GLfloat*)c); glBegin(GL_QUADS);
     for (i=0; i<4; ++i) glVertex2fv((GLfloat*)&corners[i]);
     glEnd();
+#endif
     return 1;
   }
   
@@ -468,6 +482,7 @@ int shDrawLinearGradientMesh(SHPaint *p, SHVector2 *min, SHVector2 *max,
   glActiveTexture(texUnit);
   shSetGradientTexGLState(p);
   
+#if RENDERING_ENGINE == OPENGL_1
   glEnable(GL_TEXTURE_1D);
   glBegin(GL_QUAD_STRIP);
   
@@ -481,6 +496,7 @@ int shDrawLinearGradientMesh(SHPaint *p, SHVector2 *min, SHVector2 *max,
   
   glEnd();
   glDisable(GL_TEXTURE_1D);
+#endif
 
   return 1;
 }
@@ -569,9 +585,11 @@ int shDrawRadialGradientMesh(SHPaint *p, SHVector2 *min, SHVector2 *max,
     
     /* Fill boundbox with color at offset 1 */
     SHColor *c = &p->stops.items[p->stops.size-1].color;
+#if RENDERING_ENGINE == OPENGL_1
     glColor4fv((GLfloat*)c); glBegin(GL_QUADS);
     for (i=0; i<4; ++i) glVertex2fv((GLfloat*)&corners[i]);
     glEnd();
+#endif
     return 1;
   }
   
@@ -651,8 +669,10 @@ int shDrawRadialGradientMesh(SHPaint *p, SHVector2 *min, SHVector2 *max,
   glActiveTexture(texUnit);
   shSetGradientTexGLState(p);
   
+#if RENDERING_ENGINE == OPENGL_1
   glEnable(GL_TEXTURE_1D);
   glBegin(GL_QUADS);
+#endif
   
   /* Walk the steps and draw gradient mesh */
   for (i=0, a=startA; i<numsteps; ++i, a+=step) {
@@ -682,12 +702,14 @@ int shDrawRadialGradientMesh(SHPaint *p, SHVector2 *min, SHVector2 *max,
     
     /* Draw quad */
     if (i!=0) {
+#if RENDERING_ENGINE == OPENGL_1
       glMultiTexCoord1f(texUnit, minOffset);
       glVertex2fv((GLfloat*)&min1);
       glVertex2fv((GLfloat*)&min2);
       glMultiTexCoord1f(texUnit, maxOffset);
       glVertex2fv((GLfloat*)&max2);
       glVertex2fv((GLfloat*)&max1);
+#endif
     }
     
     /* Save prev points */
@@ -695,8 +717,10 @@ int shDrawRadialGradientMesh(SHPaint *p, SHVector2 *min, SHVector2 *max,
     max1 = max2;
   }
   
+#if RENDERING_ENGINE == OPENGL_1
   glEnd();
   glDisable(GL_TEXTURE_1D);
+#endif
 
   return 1;
 }
@@ -732,9 +756,11 @@ int shDrawPatternMesh(SHPaint *p, SHVector2 *min, SHVector2 *max,
     
     /* Fill boundbox with tile fill color */
     SHColor *c = &context->tileFillColor;
+#if RENDERING_ENGINE == OPENGL_1
     glColor4fv((GLfloat*)c); glBegin(GL_QUADS);
     for (i=0; i<4; ++i) glVertex2fv((GLfloat*)&corners[i]);
     glEnd();
+#endif
     return 1;
   }
   
@@ -746,6 +772,7 @@ int shDrawPatternMesh(SHPaint *p, SHVector2 *min, SHVector2 *max,
   
   glActiveTexture(texUnit);
   shMatrixToGL(&mi, migl);
+#if RENDERING_ENGINE == OPENGL_1
   glMatrixMode(GL_TEXTURE);
   glPushMatrix();
   glScalef(sx, sy, 1.0f);
@@ -767,5 +794,6 @@ int shDrawPatternMesh(SHPaint *p, SHVector2 *min, SHVector2 *max,
   glDisable(GL_TEXTURE_2D);
   glPopMatrix();
   glMatrixMode(GL_MODELVIEW);
+#endif
   return 1;
 }

@@ -31,12 +31,14 @@ VG_API_CALL VGboolean vgCreateContextSH(VGint width, VGint height)
   /* setup GL projection */
   glViewport(0,0,width,height);
   
+#if RENDERING_ENGINE == OPENGL_1
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
   gluOrtho2D(0,width,0,height);
   
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
+#endif
   
   return VG_TRUE;
 }
@@ -52,12 +54,14 @@ VG_API_CALL void vgResizeSurfaceSH(VGint width, VGint height)
   /* setup GL projection */
   glViewport(0,0,width,height);
   
+#if RENDERING_ENGINE == OPENGL_1
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
   gluOrtho2D(0,width,0,height);
   
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
+#endif
   
   VG_RETURN(VG_NO_RETVAL);
 }

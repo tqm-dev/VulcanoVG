@@ -518,9 +518,10 @@ void shUpdateImageTexture(SHImage *i, VGContext *c)
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
     glBindTexture(GL_TEXTURE_2D, i->texture);
     
-    
+#if RENDERING_ENGINE == OPENGL_1
     gluScaleImage(i->fd.glformat, i->width, i->height, i->fd.gltype, i->data,
                   potwidth, potheight, i->fd.gltype, potdata);
+#endif
     
     glTexImage2D(GL_TEXTURE_2D, 0, i->fd.glintformat, potwidth, potheight, 0,
                  i->fd.glformat, i->fd.gltype, potdata);
@@ -972,9 +973,11 @@ VG_API_CALL void vgSetPixels(VGint dx, VGint dy,
                0,0,sx,sy, width, height);
 
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+#if RENDERING_ENGINE == OPENGL_1
   glRasterPos2i(dx, dy);
   glDrawPixels(width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
   glRasterPos2i(0,0);
+#endif
   
   free(pixels);
 
@@ -1030,9 +1033,11 @@ VG_API_CALL void vgWritePixels(const void * data, VGint dataStride,
                0,0,0,0, width, height);
   
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+#if RENDERING_ENGINE == OPENGL_1
   glRasterPos2i(dx, dy);
   glDrawPixels(width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
   glRasterPos2i(0,0);
+#endif
   
   free(pixels);
 
@@ -1160,9 +1165,11 @@ VG_API_CALL void vgCopyPixels(VGint dx, VGint dy,
   
   glPixelStorei(GL_PACK_ALIGNMENT, 1);
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+#if RENDERING_ENGINE == OPENGL_1
   glRasterPos2i(dx, dy);
   glCopyPixels(sx, sy, width, height, GL_COLOR);
   glRasterPos2i(0, 0);
+#endif
   
   VG_RETURN(VG_NO_RETVAL);
 }
